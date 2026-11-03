@@ -1,0 +1,76 @@
+{
+  "name": "rainbrush",
+  "version": "0.1.0",
+  "description": "Weather alerts for smallholder farmers",
+  "author": "Rainbrush",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "prepare-icons": "node scripts/make-icons.js",
+    "dist:win": "npm run prepare-icons && electron-builder --win --x64",
+    "dist:win:portable": "npm run prepare-icons && electron-builder --win portable --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "devDependencies": {
+    "electron": "^44.7.2",
+    "electron-builder": "^26.5.0",
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.35.5"
+  },
+  "dependencies": {
+    "africastalking": "^0.7.2",
+    "better-sqlite3": "^11.3.0",
+    "twilio": "^5.3.0"
+  },
+  "build": {
+    "appId": "org.rainbrush.desktop",
+    "productName": "Rainbrush",
+    "copyright": "(c) 2026 Rainbrush",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "sms.js",
+      "voice.js",
+      "receipts.js",
+      "ussd.js",
+      "scheduler.js",
+      "engine.js",
+      "sms-format.js",
+      "renderer-csv.js",
+      "index.html",
+      "assets/icon.ico",
+      "assets/icon.png",
+      "assets/tray.png"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "Rainbrush-Setup-${version}-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Rainbrush"
+    }
+  }
+}

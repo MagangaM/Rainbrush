@@ -1,0 +1,2756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+               font-src https://fonts.gstatic.com;
+               script-src 'self' 'unsafe-inline';
+               img-src 'self' data:;
+               connect-src https://api.open-meteo.com;">
+<title>Rainbrush</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Karla:wght@300;400;500;600;700&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --canvas:#f3ece0; --canvas-2:#ece3d3; --paper:#faf6ee;
+  --ink:#2a241d; --ink-soft:#5c5145; --ink-faint:#8f8375; --line:#d4c6ab;
+  --ochre:#d99b3f; --ochre-deep:#b87c26;
+  --terracotta:#c05f3c; --terracotta-d:#96432a;
+  --sage:#7d9b76; --sage-deep:#5b7a55;
+  --plum:#8a4a63; --gold:#e3b654;
+  --sky:#6f96b8; --sky-deep:#4b7292;
+  --shadow-sm:0 1px 2px rgba(70,52,32,.10),0 2px 6px rgba(70,52,32,.06);
+  --shadow-md:0 2px 4px rgba(70,52,32,.10),0 8px 20px rgba(70,52,32,.09);
+  --shadow-lg:0 4px 10px rgba(70,52,32,.12),0 18px 44px rgba(70,52,32,.13);
+  --r-md:10px; --r-lg:16px;
+  --display:'Fraunces',Georgia,serif;
+  --body:'Karla',-apple-system,'Segoe UI',sans-serif;
+  --hand:'Caveat','Segoe Script',cursive;
+}
+*,*::before,*::after{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;min-height:100vh;font-family:var(--body);font-size:15px;line-height:1.6;
+  color:var(--ink);background-color:var(--canvas);
+  background-image:
+    repeating-linear-gradient(0deg,rgba(120,100,70,.05) 0 1px,transparent 1px 4px),
+    repeating-linear-gradient(90deg,rgba(120,100,70,.05) 0 1px,transparent 1px 4px),
+    radial-gradient(ellipse at 12% 6%,rgba(217,155,63,.13),transparent 52%),
+    radial-gradient(ellipse at 88% 12%,rgba(111,150,184,.11),transparent 48%),
+    radial-gradient(ellipse at 78% 92%,rgba(125,155,118,.14),transparent 52%),
+    radial-gradient(ellipse at 8% 88%,rgba(192,95,60,.09),transparent 48%);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;
+}
+.grain{position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:.42;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");}
+.vignette{position:fixed;inset:0;z-index:9998;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 40%,transparent 55%,rgba(90,68,44,.10) 100%);}
+::selection{background:rgba(217,155,63,.35);}
+
+h1,h2,h3,h4{font-family:var(--display);font-weight:700;margin:0;letter-spacing:-.01em;}
+h1{font-size:clamp(1.5rem,3vw,2rem);}
+h2{font-size:1.42rem;} h3{font-size:1.1rem;}
+p{margin:0;}
+.hand{font-family:var(--hand);font-size:1.24rem;color:var(--ink-soft);font-weight:500;}
+.eyebrow{font-family:var(--body);font-size:.68rem;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-faint);}
+
+.topbar{
+  position:sticky;top:0;z-index:120;
+  background:linear-gradient(180deg,rgba(243,236,224,.97) 0%,rgba(243,236,224,.93) 100%);
+  backdrop-filter:blur(10px) saturate(140%);
+  border-bottom:1px solid rgba(140,115,80,.20);
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 4px 18px rgba(80,60,38,.06);
+  -webkit-app-region:drag;
+  padding-right:150px;
+}
+.topbar-inner{max-width:1400px;margin:0 auto;padding:12px 26px 0;display:flex;
+  align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand-mark{width:46px;height:46px;flex:none;border-radius:13px;
+  background:linear-gradient(150deg,#fff9ec,#efe2c9);
+  border:1px solid rgba(140,110,70,.28);
+  box-shadow:0 2px 6px rgba(90,65,40,.14),inset 0 1px 0 #fff;
+  display:grid;place-items:center;}
+.brand-mark img{width:34px;height:34px;}
+.brand h1{line-height:1.05;}
+.brand .tagline{font-family:var(--hand);font-size:1rem;color:var(--ink-faint);margin-top:-2px;}
+
+.tabs{display:flex;gap:2px;flex-wrap:wrap;-webkit-app-region:no-drag;}
+.tab{position:relative;border:0;background:transparent;cursor:pointer;
+  font-family:var(--body);font-size:.78rem;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-faint);
+  padding:9px 14px 15px;border-radius:8px 8px 0 0;
+  transition:color .18s,background .18s;}
+.tab:hover{color:var(--ink);background:rgba(217,155,63,.10);}
+.tab:focus-visible{outline:2.5px solid var(--ochre);outline-offset:2px;}
+.tab.active{color:var(--ink);}
+.tab .smear{position:absolute;left:8px;right:8px;bottom:5px;height:8px;opacity:0;
+  transform:scaleX(.4);transform-origin:left;
+  transition:opacity .22s,transform .28s cubic-bezier(.2,.9,.3,1.2);}
+.tab.active .smear{opacity:1;transform:scaleX(1);}
+.tab .smear path{stroke-width:7;stroke-linecap:round;fill:none;}
+.tab[data-view="studio"] .smear path{stroke:var(--ochre);}
+.tab[data-view="sky"] .smear path{stroke:var(--sky);}
+.tab[data-view="gallery"] .smear path{stroke:var(--sage);}
+.tab[data-view="brushstrokes"] .smear path{stroke:var(--terracotta);}
+.tab[data-view="newcanvas"] .smear path{stroke:var(--plum);}
+.tab[data-view="settings"] .smear path{stroke:var(--ink-faint);}
+
+main{max-width:1400px;margin:0 auto;padding:28px 26px 90px;}
+.view{display:none;animation:viewIn .42s cubic-bezier(.2,.8,.3,1);}
+.view.active{display:block;}
+@keyframes viewIn{from{opacity:0;transform:translateY(12px) scale(.995);}to{opacity:1;transform:none;}}
+
+.view-head{margin-bottom:22px;display:flex;align-items:flex-end;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;}
+.view-head .lead{max-width:64ch;color:var(--ink-soft);margin-top:6px;}
+.grid{display:grid;gap:22px;}
+.grid-2{grid-template-columns:1.35fr 1fr;}
+.grid-2e{grid-template-columns:1fr 1fr;}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+@media (max-width:1080px){.grid-2,.grid-2e{grid-template-columns:1fr;}.grid-4{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:720px){.grid-3,.grid-4{grid-template-columns:1fr;}}
+
+.card{position:relative;
+  background:linear-gradient(180deg,rgba(255,253,247,.96),rgba(247,240,227,.92));
+  border:1px solid rgba(140,115,80,.22);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-md),inset 0 1px 0 rgba(255,255,255,.85);
+  padding:22px;overflow:hidden;}
+.card::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:repeating-linear-gradient(0deg,rgba(120,100,70,.035) 0 1px,transparent 1px 4px),
+             repeating-linear-gradient(90deg,rgba(120,100,70,.035) 0 1px,transparent 1px 4px);
+  opacity:.7;}
+.card > *{position:relative;z-index:1;}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;}
+.card-head h3{display:flex;align-items:center;gap:9px;}
+.card-head .ico{font-size:1.05rem;}
+
+.stat{position:relative;padding:20px 20px 18px;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,rgba(255,253,247,.97),rgba(246,238,224,.93));
+  border:1px solid rgba(140,115,80,.22);
+  box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.9);overflow:hidden;}
+.stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;
+  background:var(--accent,var(--ochre));opacity:.85;}
+.stat .k{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);}
+.stat .v{font-family:var(--display);font-size:2.15rem;font-weight:900;line-height:1.1;
+  margin:4px 0 0;letter-spacing:-.02em;}
+.stat .sub{font-size:.8rem;color:var(--ink-faint);margin-top:2px;}
+
+.btn{position:relative;display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--body);font-size:.82rem;font-weight:700;letter-spacing:.04em;
+  padding:10px 20px;border-radius:100px;cursor:pointer;border:1.5px solid transparent;
+  transition:transform .14s,box-shadow .18s,background .18s,color .18s;
+  text-transform:uppercase;}
+.btn:active{transform:translateY(1px) scale(.985);}
+.btn:focus-visible{outline:2.5px solid var(--ink);outline-offset:2px;}
+.btn-primary{background:linear-gradient(160deg,var(--terracotta),var(--terracotta-d));
+  color:#fff8ee;box-shadow:0 3px 0 rgba(120,50,28,.35),0 8px 18px rgba(150,67,42,.28);}
+.btn-ochre{background:linear-gradient(160deg,var(--gold),var(--ochre-deep));
+  color:#3a2a0d;box-shadow:0 3px 0 rgba(140,95,25,.35),0 8px 18px rgba(180,124,38,.26);}
+.btn-ghost{background:rgba(255,255,255,.6);color:var(--ink);
+  border-color:rgba(140,115,80,.38);box-shadow:var(--shadow-sm);}
+.btn-ghost:hover{background:#fff;border-color:rgba(140,115,80,.6);}
+.btn-sm{padding:7px 14px;font-size:.72rem;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-danger-ghost{background:rgba(255,255,255,.6);color:var(--terracotta-d);
+  border-color:rgba(192,95,60,.4);box-shadow:var(--shadow-sm);}
+.btn-danger-ghost:hover{background:rgba(192,95,60,.10);border-color:var(--terracotta);color:var(--terracotta-d);}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:.7rem;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px;}
+.input,.select{width:100%;font-family:var(--body);font-size:.94rem;color:var(--ink);
+  padding:11px 14px;border-radius:var(--r-md);background:rgba(255,253,247,.85);
+  border:1.5px solid rgba(140,115,80,.30);
+  box-shadow:inset 0 1px 3px rgba(90,70,45,.07);
+  transition:border-color .18s,box-shadow .18s,background .18s;appearance:none;}
+.select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235c5145' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;padding-right:38px;}
+.input:focus,.select:focus{outline:none;border-color:var(--ochre);background:#fff;
+  box-shadow:0 0 0 3.5px rgba(217,155,63,.20),inset 0 1px 3px rgba(90,70,45,.05);}
+.hint{font-size:.76rem;color:var(--ink-faint);margin-top:5px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:560px){.field-row{grid-template-columns:1fr;}}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:100px;
+  background:rgba(255,255,255,.65);border:1.5px solid rgba(140,115,80,.30);
+  color:var(--ink-soft);cursor:pointer;transition:all .16s;user-select:none;}
+.chip:hover{border-color:var(--ochre);color:var(--ink);}
+.chip.on{background:linear-gradient(160deg,var(--ochre),var(--ochre-deep));
+  color:#3a2a0d;border-color:transparent;box-shadow:0 2px 0 rgba(140,95,25,.3);}
+
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:.66rem;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:100px;white-space:nowrap;}
+.badge.critical{background:rgba(192,95,60,.16);color:var(--terracotta-d);border:1px solid rgba(192,95,60,.32);}
+.badge.warning{background:rgba(217,155,63,.20);color:var(--ochre-deep);border:1px solid rgba(217,155,63,.40);}
+.badge.advisory{background:rgba(111,150,184,.18);color:var(--sky-deep);border:1px solid rgba(111,150,184,.36);}
+.badge.info{background:rgba(125,155,118,.18);color:var(--sage-deep);border:1px solid rgba(125,155,118,.36);}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;
+  padding:4px 11px;border-radius:100px;background:rgba(255,255,255,.7);
+  border:1px solid rgba(140,115,80,.26);color:var(--ink-soft);}
+
+.fc-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;}
+@media (max-width:880px){.fc-strip{grid-template-columns:repeat(4,1fr);}}
+.fc-day{position:relative;border-radius:var(--r-md);padding:12px 8px 10px;text-align:center;
+  background:linear-gradient(180deg,rgba(255,253,247,.8),rgba(244,236,221,.6));
+  border:1px solid rgba(140,115,80,.20);transition:transform .18s,box-shadow .18s;}
+.fc-day:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);}
+.fc-day.today{border-color:var(--ochre);box-shadow:0 0 0 2px rgba(217,155,63,.22);}
+.fc-day .dow{font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);}
+.fc-day .num{font-family:var(--display);font-size:1.5rem;font-weight:900;line-height:1.15;margin-top:2px;}
+.fc-day .tmin{font-size:.74rem;color:var(--sky-deep);font-weight:700;}
+.fc-day .rain{margin-top:8px;font-size:.72rem;font-weight:700;color:var(--sky-deep);
+  display:flex;align-items:center;justify-content:center;gap:4px;}
+.fc-bar{height:46px;display:flex;align-items:flex-end;justify-content:center;margin-top:6px;}
+.fc-bar i{display:block;width:60%;border-radius:5px 5px 3px 3px;
+  background:linear-gradient(180deg,var(--sky),var(--sky-deep));opacity:.85;min-height:3px;
+  transition:height .5s cubic-bezier(.2,.8,.3,1);}
+.fc-day .wind{font-size:.68rem;color:var(--ink-faint);margin-top:5px;}
+
+.farmer{position:relative;padding:18px;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,rgba(255,253,247,.95),rgba(246,239,226,.9));
+  border:1px solid rgba(140,115,80,.22);box-shadow:var(--shadow-sm);
+  transition:transform .18s,box-shadow .18s;overflow:hidden;}
+.farmer:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);}
+.farmer::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;
+  background:var(--accent,var(--sage));opacity:.8;}
+.farmer-top{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.avatar{width:44px;height:44px;flex:none;border-radius:50%;display:grid;place-items:center;
+  font-family:var(--display);font-weight:900;font-size:1.05rem;color:#fff;
+  box-shadow:inset 0 -3px 6px rgba(0,0,0,.18),0 2px 6px rgba(80,60,38,.2);
+  border:2px solid rgba(255,255,255,.65);}
+.farmer h4{font-size:1.02rem;line-height:1.25;}
+.farmer .loc{font-size:.78rem;color:var(--ink-faint);}
+.farmer-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+.farmer-stats{display:flex;gap:16px;margin-top:14px;padding-top:12px;
+  border-top:1px dashed rgba(140,115,80,.28);}
+.farmer-stats div{font-size:.72rem;color:var(--ink-faint);}
+.farmer-stats strong{display:block;font-family:var(--display);font-size:1.15rem;
+  color:var(--ink);font-weight:900;}
+.farmer .farmer-edit{position:absolute;top:14px;right:14px;z-index:2;
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 10px;border-radius:100px;
+  font-family:var(--body);font-size:.68rem;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;
+  background:rgba(255,255,255,.85);color:var(--ink-soft);
+  border:1px solid rgba(140,115,80,.28);cursor:pointer;
+  box-shadow:0 1px 3px rgba(90,70,45,.10);
+  transition:background .15s,border-color .15s,color .15s,transform .12s;
+  opacity:.65;}
+.farmer:hover .farmer-edit{opacity:1;}
+.farmer-edit:hover{background:var(--ochre);border-color:var(--ochre);color:#3a2a0d;transform:translateY(-1px);}
+.farmer-edit:focus-visible{outline:2.5px solid var(--ink);outline-offset:2px;}
+
+.alert-item{position:relative;padding:15px 16px 15px 20px;border-radius:var(--r-md);
+  background:rgba(255,253,247,.85);border:1px solid rgba(140,115,80,.20);
+  box-shadow:var(--shadow-sm);cursor:pointer;
+  transition:transform .16s,box-shadow .18s,border-color .18s,background .18s;margin-bottom:11px;}
+.alert-item:hover{transform:translateX(3px);box-shadow:var(--shadow-md);background:#fff;}
+.alert-item.sel{border-color:var(--ochre);
+  box-shadow:0 0 0 2.5px rgba(217,155,63,.25),var(--shadow-md);background:#fff;}
+.alert-item::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:5px;
+  border-radius:0 4px 4px 0;background:var(--sev,var(--ochre));}
+.alert-item.critical{--sev:var(--terracotta);}
+.alert-item.warning{--sev:var(--ochre);}
+.alert-item.advisory{--sev:var(--sky);}
+.alert-item.info{--sev:var(--sage);}
+.alert-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:5px;}
+.alert-title{font-family:var(--display);font-weight:700;font-size:.98rem;display:flex;align-items:center;gap:7px;}
+.alert-sub{font-size:.78rem;color:var(--ink-faint);}
+.alert-body{font-size:.85rem;color:var(--ink-soft);line-height:1.55;margin-top:9px;
+  padding-top:9px;border-top:1px dashed rgba(140,115,80,.24);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.alert-foot{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap;}
+
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.empty{text-align:center;padding:48px 20px;color:var(--ink-faint);}
+.empty .big{font-size:2.6rem;opacity:.4;margin-bottom:10px;}
+.empty h4{color:var(--ink-soft);margin-bottom:5px;}
+
+.phone-wrap{display:flex;flex-direction:column;align-items:center;gap:16px;}
+.phone{width:268px;height:534px;flex:none;background:linear-gradient(160deg,#3a3229,#221d17);
+  border-radius:38px;padding:12px 10px;position:relative;
+  box-shadow:0 2px 0 rgba(255,255,255,.10) inset,0 22px 50px rgba(60,42,24,.34),
+             0 4px 12px rgba(60,42,24,.22);}
+.phone::before{content:'';position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  width:64px;height:5px;border-radius:100px;background:#0f0d0a;opacity:.7;}
+.phone-screen{height:100%;border-radius:28px;overflow:hidden;background:#f7f2e8;
+  display:flex;flex-direction:column;position:relative;}
+.ps-head{padding:24px 16px 12px;background:linear-gradient(180deg,#efe6d4,#f4ecdd);
+  border-bottom:1px solid rgba(140,115,80,.20);flex:none;}
+.ps-head .who{font-weight:800;font-size:.86rem;letter-spacing:.02em;}
+.ps-head .ch{font-size:.68rem;color:var(--ink-faint);letter-spacing:.09em;text-transform:uppercase;}
+.ps-body{flex:1;overflow-y:auto;padding:16px;}
+.bubble{background:#fff;border-radius:16px 16px 16px 4px;padding:13px 15px;
+  font-size:.83rem;line-height:1.55;color:var(--ink);
+  box-shadow:0 2px 8px rgba(90,70,45,.10);border:1px solid rgba(140,115,80,.14);
+  animation:pop .4s cubic-bezier(.2,.9,.3,1.3);}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.96);}to{opacity:1;transform:none;}}
+.bubble .meta{font-size:.66rem;color:var(--ink-faint);margin-top:8px;text-align:right;}
+.ivr-screen{background:linear-gradient(170deg,#2f3b4d,#1d2632);color:#eef3f8;height:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:26px 20px;text-align:center;gap:6px;}
+.ivr-screen .calling{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;opacity:.6;}
+.ivr-screen .num{font-family:var(--display);font-size:1.3rem;font-weight:700;margin-bottom:8px;}
+.wave{display:flex;align-items:center;gap:3px;height:56px;margin:10px 0;}
+.wave i{display:block;width:4px;border-radius:100px;
+  background:linear-gradient(180deg,var(--gold),var(--ochre));
+  animation:waveA 1.1s ease-in-out infinite;}
+@keyframes waveA{0%,100%{height:8px;opacity:.55;}50%{height:46px;opacity:1;}}
+.ivr-script{font-size:.79rem;line-height:1.6;opacity:.92;margin-top:6px;
+  background:rgba(255,255,255,.07);border-radius:12px;padding:13px;
+  border:1px solid rgba(255,255,255,.10);text-align:left;}
+.ivr-btn{width:52px;height:52px;border-radius:50%;background:#c0392b;border:none;
+  display:grid;place-items:center;margin-top:16px;
+  box-shadow:0 6px 18px rgba(0,0,0,.35);}
+.ussd-screen{background:#0f1a12;color:#8ef0a8;height:100%;padding:20px 16px;
+  font-family:Consolas,'Courier New',monospace;font-size:.78rem;line-height:1.75;
+  letter-spacing:.01em;white-space:pre-wrap;overflow-y:auto;}
+.ussd-screen .dim{color:#4f8a63;}
+.ussd-screen .cur{animation:blink 1s steps(2) infinite;}
+@keyframes blink{50%{opacity:0;}}
+
+.divider{height:1px;background:repeating-linear-gradient(90deg,rgba(140,115,80,.35) 0 8px,transparent 8px 14px);
+  margin:20px 0;border:0;}
+
+.toast-stack{position:fixed;bottom:24px;right:24px;z-index:500;display:flex;
+  flex-direction:column;gap:10px;align-items:flex-end;}
+.toast{background:linear-gradient(160deg,#fffdf8,#f4ecdd);
+  border:1px solid rgba(140,115,80,.3);border-left:5px solid var(--ochre);
+  border-radius:var(--r-md);padding:12px 18px;box-shadow:var(--shadow-lg);
+  font-size:.85rem;font-weight:600;max-width:330px;
+  animation:toastIn .35s cubic-bezier(.2,.9,.3,1.3);}
+.toast.ok{border-left-color:var(--sage);}
+.toast.warn{border-left-color:var(--terracotta);}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px) scale(.94);}to{opacity:1;transform:none;}}
+.toast.out{animation:toastOut .3s forwards;}
+@keyframes toastOut{to{opacity:0;transform:translateX(40px) scale(.94);}}
+
+.bcast{margin-top:14px;padding:14px 16px;border-radius:var(--r-md);
+  background:rgba(255,255,255,.7);border:1px dashed rgba(140,115,80,.35);display:none;}
+.bcast.on{display:block;animation:viewIn .3s;}
+.bcast-track{height:12px;border-radius:100px;background:rgba(140,115,80,.14);
+  overflow:hidden;margin:10px 0 8px;box-shadow:inset 0 1px 3px rgba(90,70,45,.14);}
+.bcast-fill{height:100%;width:0%;border-radius:100px;
+  background:linear-gradient(90deg,var(--ochre),var(--terracotta));transition:width .25s ease;}
+.bcast-label{display:flex;justify-content:space-between;font-size:.76rem;
+  color:var(--ink-faint);font-weight:600;}
+
+.src{display:inline-flex;align-items:center;gap:5px;font-size:.66rem;font-weight:800;
+  letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:100px;}
+.src.live{background:rgba(125,155,118,.2);color:var(--sage-deep);border:1px solid rgba(125,155,118,.4);}
+.src.sim{background:rgba(217,155,63,.2);color:var(--ochre-deep);border:1px solid rgba(217,155,63,.4);}
+.src .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.src.live .dot{animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.75);}}
+
+.modal-backdrop{position:fixed;inset:0;z-index:200;
+  background:rgba(60,45,30,.5);backdrop-filter:blur(6px);
+  display:none;align-items:center;justify-content:center;padding:24px;}
+.modal-backdrop.open{display:flex;}
+.modal-card{position:relative;width:min(940px,100%);max-height:calc(100vh - 48px);
+  background:linear-gradient(180deg,#fffdf8,#f5eddd);
+  border:1px solid rgba(140,115,80,.25);border-radius:20px;
+  box-shadow:0 24px 60px rgba(60,42,24,.4),0 4px 12px rgba(60,42,24,.2);
+  display:flex;flex-direction:column;overflow:hidden;
+  animation:modalIn .3s cubic-bezier(.2,.9,.3,1.2);}
+@keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.98);}}
+.modal-card::after{content:'';position:absolute;inset:0;pointer-events:none;
+  border-radius:inherit;opacity:.8;
+  background:repeating-linear-gradient(0deg,rgba(120,100,70,.03) 0 1px,transparent 1px 4px),
+             repeating-linear-gradient(90deg,rgba(120,100,70,.03) 0 1px,transparent 1px 4px);}
+.modal-head,.modal-body,.modal-foot{position:relative;z-index:1;}
+.modal-head{padding:20px 24px;border-bottom:1px solid rgba(140,115,80,.18);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  background:linear-gradient(180deg,rgba(255,253,247,1),rgba(246,239,226,.6));}
+.modal-head h2{font-size:1.35rem;}
+.modal-close{width:32px;height:32px;border-radius:50%;
+  border:1px solid rgba(140,115,80,.3);
+  background:rgba(255,255,255,.6);cursor:pointer;
+  font-size:1.05rem;color:var(--ink-soft);
+  display:grid;place-items:center;transition:all .15s;}
+.modal-close:hover{background:rgba(192,95,60,.12);border-color:var(--terracotta);color:var(--terracotta-d);}
+.modal-body{padding:22px 24px;overflow-y:auto;flex:1;}
+.modal-foot{padding:16px 24px;border-top:1px solid rgba(140,115,80,.18);
+  display:flex;justify-content:space-between;gap:12px;
+  background:linear-gradient(0deg,rgba(255,253,247,1),rgba(246,239,226,.6));}
+
+.dropzone{padding:44px 24px;border-radius:16px;
+  border:2px dashed rgba(140,115,80,.4);
+  background:rgba(255,253,247,.6);text-align:center;transition:all .2s;}
+.dropzone.dragging{border-color:var(--ochre);background:rgba(217,155,63,.08);}
+.dropzone-icon{font-size:2.4rem;margin-bottom:8px;opacity:.55;}
+.dropzone-title{font-family:var(--display);font-size:1.15rem;font-weight:700;margin-bottom:4px;}
+.dropzone-hint{font-family:var(--hand);font-size:1rem;color:var(--ink-faint);margin:6px 0;}
+.dropzone a{color:var(--ochre-deep);text-decoration:underline;cursor:pointer;}
+
+.file-info{display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-radius:12px;
+  background:rgba(125,155,118,.12);
+  border:1px solid rgba(125,155,118,.3);margin-bottom:20px;}
+.file-info .icon{font-size:1.3rem;}
+.file-info .name{font-weight:700;}
+.file-info .size{font-size:.82rem;color:var(--ink-faint);}
+.file-info .replace{margin-left:auto;font-size:.75rem;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ochre-deep);
+  background:none;border:none;cursor:pointer;text-decoration:underline;}
+
+.section-label{font-size:.7rem;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-faint);margin-bottom:10px;}
+.mapping-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 20px;margin-bottom:20px;}
+@media (max-width:640px){.mapping-grid{grid-template-columns:1fr;}}
+.mapping-row label{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px;}
+.mapping-row label .req{color:var(--terracotta);}
+.mapping-row select{width:100%;font-family:var(--body);font-size:.85rem;
+  padding:8px 12px;border-radius:8px;
+  border:1.5px solid rgba(140,115,80,.3);
+  background:rgba(255,253,247,.9);color:var(--ink);}
+.mapping-row select.missing{border-color:var(--terracotta);background:rgba(192,95,60,.06);}
+
+.country-row{padding:14px 16px;border-radius:12px;
+  background:rgba(111,150,184,.08);
+  border:1px solid rgba(111,150,184,.25);margin-bottom:20px;}
+.country-row label{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--sky-deep);margin-bottom:6px;}
+.country-row select{max-width:280px;}
+.country-row .hint{margin-top:8px;}
+
+.preview-summary{display:flex;gap:16px;flex-wrap:wrap;
+  padding:12px 16px;border-radius:12px;
+  background:rgba(255,253,247,.7);
+  border:1px solid rgba(140,115,80,.2);
+  margin-bottom:12px;font-size:.86rem;font-weight:600;}
+.preview-summary .ok{color:var(--sage-deep);}
+.preview-summary .warn{color:var(--ochre-deep);}
+.preview-summary .err{color:var(--terracotta-d);}
+
+.csv-preview{width:100%;border-collapse:collapse;font-size:.82rem;
+  border:1px solid rgba(140,115,80,.2);background:rgba(255,253,247,.5);}
+.csv-preview thead th{text-align:left;padding:10px 12px;
+  background:rgba(140,115,80,.08);
+  font-size:.68rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-faint);
+  border-bottom:1px solid rgba(140,115,80,.2);
+  position:sticky;top:0;z-index:1;}
+.csv-preview tbody td{padding:9px 12px;
+  border-bottom:1px dashed rgba(140,115,80,.18);vertical-align:top;}
+.csv-preview tr.row-warn{background:rgba(217,155,63,.06);}
+.csv-preview tr.row-error{background:rgba(192,95,60,.08);}
+.csv-preview td.status{width:26px;font-size:.95rem;text-align:center;}
+.csv-preview td.issues{font-size:.74rem;color:var(--terracotta-d);max-width:280px;}
+.csv-preview tr.row-warn td.issues{color:var(--ochre-deep);}
+.csv-preview tr.row-ok td.issues{color:var(--ink-faint);}
+
+.edit-history-empty{font-family:var(--hand);font-size:1.1rem;color:var(--ink-faint);
+  text-align:center;padding:14px 0;}
+.edit-history-counts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.edit-history-list{display:flex;flex-direction:column;gap:8px;
+  max-height:220px;overflow-y:auto;padding-right:6px;}
+.edit-history-item{display:flex;align-items:flex-start;gap:10px;
+  padding:9px 12px;border-radius:9px;
+  background:rgba(255,253,247,.7);
+  border:1px solid rgba(140,115,80,.18);font-size:.83rem;}
+.edit-history-item .icon{font-size:.95rem;line-height:1.3;flex:none;}
+.edit-history-item .title{font-weight:700;color:var(--ink);line-height:1.3;}
+.edit-history-item .when{font-size:.72rem;color:var(--ink-faint);margin-top:2px;}
+
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:rgba(140,115,80,.08);border-radius:100px;}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(160,132,95,.55),rgba(130,105,72,.65));
+  border-radius:100px;border:2px solid transparent;background-clip:padding-box;}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,rgba(160,132,95,.8),rgba(130,105,72,.9));
+  background-clip:padding-box;}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;transition-duration:.001ms !important;}
+}
+</style>
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark"><img src="assets/icon.svg" alt=""></div>
+      <div>
+        <h1>Rainbrush</h1>
+        <p class="tagline">Weather alerts, painted for every farm</p>
+      </div>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-view="studio" role="tab">
+        Studio
+        <svg class="smear" viewBox="0 0 100 12" preserveAspectRatio="none"><path d="M2,7 C22,2 42,10 62,5 C78,1 90,8 98,5"/></svg>
+      </button>
+      <button class="tab" data-view="sky" role="tab">
+        The Sky
+        <svg class="smear" viewBox="0 0 100 12" preserveAspectRatio="none"><path d="M2,6 C24,10 44,2 64,7 C80,11 90,3 98,6"/></svg>
+      </button>
+      <button class="tab" data-view="gallery" role="tab">
+        Gallery
+        <svg class="smear" viewBox="0 0 100 12" preserveAspectRatio="none"><path d="M2,7 C20,3 46,9 66,4 C82,0 92,9 98,6"/></svg>
+      </button>
+      <button class="tab" data-view="brushstrokes" role="tab">
+        Brushstrokes
+        <svg class="smear" viewBox="0 0 100 12" preserveAspectRatio="none"><path d="M2,5 C26,9 44,3 62,8 C78,12 90,4 98,7"/></svg>
+      </button>
+      <button class="tab" data-view="newcanvas" role="tab">
+        New Canvas
+        <svg class="smear" viewBox="0 0 100 12" preserveAspectRatio="none"><path d="M2,6 C22,2 48,10 68,5 C84,1 92,8 98,5"/></svg>
+      </button>
+      <button class="tab" data-view="settings" role="tab">
+        Settings
+        <svg class="smear" viewBox="0 0 100 12" preserveAspectRatio="none"><path d="M2,6 C24,3 44,9 64,4 C80,0 90,8 98,6"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ STUDIO ============ -->
+  <section id="view-studio" class="view active">
+    <div class="view-head">
+      <div>
+        <p class="eyebrow">The Studio</p>
+        <h2>Today's canvas</h2>
+        <p class="lead">Every farm below is being watched. When the sky changes, we paint a warning and send it down the wire — by text, by voice, or by menu.</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="btn-refresh">↻ Refresh sky</button>
+        <button class="btn btn-primary" id="btn-broadcast-top">⚡ Broadcast all</button>
+      </div>
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:24px">
+      <div class="stat" style="--accent:var(--sage)">
+        <p class="k">Farmers on canvas</p>
+        <p class="v" id="stat-farmers">0</p>
+        <p class="sub" id="stat-locations">across 0 locations</p>
+      </div>
+      <div class="stat" style="--accent:var(--terracotta)">
+        <p class="k">Live alerts</p>
+        <p class="v" id="stat-alerts">0</p>
+        <p class="sub" id="stat-critical">0 critical</p>
+      </div>
+      <div class="stat" style="--accent:var(--ochre)">
+        <p class="k">Messages sent</p>
+        <p class="v" id="stat-sent">0</p>
+        <p class="sub">lifetime</p>
+      </div>
+      <div class="stat" style="--accent:var(--sky)">
+        <p class="k">Delivery rate</p>
+        <p class="v" id="stat-rate">—</p>
+        <p class="sub">SMS · Voice · USSD</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3><span class="ico">🎨</span> Sky over <span id="studio-loc-name" style="font-weight:900">—</span></h3>
+          <span id="studio-src"></span>
+        </div>
+        <p class="hand" style="margin-bottom:14px">Seven days, painted in rain and heat.</p>
+        <div class="fc-strip" id="studio-strip"></div>
+        <hr class="divider">
+        <div id="studio-notes" style="font-size:.87rem;color:var(--ink-soft)"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3><span class="ico">🖌</span> Freshest brushstrokes</h3>
+          <button class="btn btn-ghost btn-sm" data-goto="brushstrokes">See all →</button>
+        </div>
+        <div id="studio-alerts"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THE SKY ============ -->
+  <section id="view-sky" class="view">
+    <div class="view-head">
+      <div>
+        <p class="eyebrow">The Sky</p>
+        <h2>Forecast &amp; field notes</h2>
+        <p class="lead">Raw forecast data, translated into what it means for a farmer standing in that field.</p>
+      </div>
+      <div style="min-width:230px">
+        <label class="eyebrow" for="sky-loc">Location</label>
+        <select class="select" id="sky-loc" style="margin-top:6px"></select>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns:1fr;gap:22px">
+      <div class="card">
+        <div class="card-head">
+          <h3><span class="ico">🌤</span> Seven-day outlook</h3>
+          <span id="sky-src"></span>
+        </div>
+        <div class="fc-strip" id="sky-strip"></div>
+      </div>
+
+      <div class="grid grid-2e">
+        <div class="card">
+          <div class="card-head"><h3><span class="ico">🧪</span> Field interpretation</h3></div>
+          <div id="sky-notes"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3><span class="ico">📋</span> Day by day</h3></div>
+          <div id="sky-table" style="overflow-x:auto"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GALLERY ============ -->
+  <section id="view-gallery" class="view">
+    <div class="view-head">
+      <div>
+        <p class="eyebrow">The Gallery</p>
+        <h2>Every farmer on the canvas</h2>
+        <p class="lead">Each portrait carries a crop, a planting date, a language and a set of channels.</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input class="input" id="gallery-search" placeholder="Search name, crop, place…" style="min-width:220px">
+        <button class="btn btn-ghost btn-sm" id="btn-export">↧ Export CSV</button>
+        <button class="btn btn-ochre btn-sm" id="btn-import">↥ Import CSV</button>
+      </div>
+    </div>
+
+    <div class="filter-bar" id="gallery-filters"></div>
+    <div class="grid grid-3" id="gallery-grid"></div>
+  </section>
+
+  <!-- ============ BRUSHSTROKES ============ -->
+  <section id="view-brushstrokes" class="view">
+    <div class="view-head">
+      <div>
+        <p class="eyebrow">Brushstrokes</p>
+        <h2>Generated alerts</h2>
+        <p class="lead">Pick a stroke on the left, see exactly what lands on the farmer's phone on the right.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-broadcast">⚡ Broadcast all</button>
+    </div>
+
+    <div class="grid grid-2">
+      <div>
+        <div class="filter-bar" id="alert-filters"></div>
+        <div id="alert-list" style="max-height:70vh;overflow-y:auto;padding-right:6px"></div>
+        <div class="bcast" id="bcast-panel">
+          <div class="bcast-label"><span id="bcast-status">Sending…</span><span id="bcast-pct">0%</span></div>
+          <div class="bcast-track"><div class="bcast-fill" id="bcast-fill"></div></div>
+          <div class="bcast-label"><span id="bcast-count">0 of 0 messages</span><span id="bcast-channels"></span></div>
+        </div>
+      </div>
+
+      <div class="card" style="position:sticky;top:110px;align-self:start">
+        <div class="card-head">
+          <h3><span class="ico">📱</span> On the farmer's phone</h3>
+        </div>
+        <div class="chips" id="channel-picker" style="margin-bottom:20px;justify-content:center">
+          <button class="chip on" data-ch="sms">SMS</button>
+          <button class="chip" data-ch="voice">Voice call</button>
+          <button class="chip" data-ch="ussd">USSD menu</button>
+        </div>
+        <div class="phone-wrap" id="phone-wrap"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NEW CANVAS ============ -->
+  <section id="view-newcanvas" class="view">
+    <div class="view-head">
+      <div>
+        <p class="eyebrow">New Canvas</p>
+        <h2>Register a farmer</h2>
+        <p class="lead">Fill the canvas in. We'll start watching their sky immediately and preview their first message.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <form id="reg-form" autocomplete="off">
+          <div class="field">
+            <label for="f-name">Farmer's name</label>
+            <input class="input" id="f-name" placeholder="e.g. Amina Wanjiku" required>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="f-phone">Phone number</label>
+              <input class="input" id="f-phone" placeholder="+254 7xx xxx xxx" required>
+            </div>
+            <div class="field">
+              <label for="f-loc">Location</label>
+              <select class="select" id="f-loc" required></select>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="f-crop">Main crop</label>
+              <select class="select" id="f-crop" required></select>
+            </div>
+            <div class="field">
+              <label for="f-planted">Planting date</label>
+              <input class="input" type="date" id="f-planted">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Language for messages</label>
+            <div class="chips" id="lang-chips">
+              <button type="button" class="chip on" data-lang="en">English</button>
+              <button type="button" class="chip" data-lang="sw">Kiswahili</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Delivery channels</label>
+            <div class="chips" id="ch-chips">
+              <button type="button" class="chip on" data-ch="sms">SMS</button>
+              <button type="button" class="chip" data-ch="voice">Voice call</button>
+              <button type="button" class="chip" data-ch="ussd">USSD</button>
+            </div>
+            <p class="hint">SMS reaches every phone. Voice suits low-literacy users. USSD lets farmers pull information on demand.</p>
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+            <button type="submit" class="btn btn-primary">🖌 Add to the gallery</button>
+            <button type="reset" class="btn btn-ghost">Clear canvas</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><span class="ico">👁</span> First message preview</h3></div>
+        <p class="hand" style="margin-bottom:16px">This is what they'll read the moment the sky turns.</p>
+        <div id="reg-preview"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section id="view-settings" class="view">
+    <div class="view-head">
+      <div>
+        <p class="eyebrow">Settings</p>
+        <h2>Studio preferences</h2>
+        <p class="lead">Scheduler, SMS provider, voice, USSD relay, delivery receipts, and system information.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2e">
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-head">
+          <h3><span class="ico">⏱</span> Scheduler</h3>
+          <span id="sched-status-badge"></span>
+        </div>
+
+        <div class="grid grid-2e" style="gap:20px">
+          <div>
+            <div id="sched-summary" style="font-size:.88rem;color:var(--ink-soft);line-height:1.85">
+              Loading…
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+              <button class="btn btn-ochre btn-sm" id="sched-run">▶ Run now</button>
+              <button class="btn btn-ghost btn-sm" id="sched-pause">Pause</button>
+              <button class="btn btn-ghost btn-sm" id="sched-log">Open log</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="field">
+              <label for="sched-interval">Cycle interval</label>
+              <select class="select" id="sched-interval">
+                <option value="1">Every hour</option>
+                <option value="3">Every 3 hours</option>
+                <option value="6" selected>Every 6 hours</option>
+                <option value="12">Every 12 hours</option>
+                <option value="24">Every 24 hours</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Auto-send</label>
+              <div class="chips" id="sched-autosend">
+                <button class="chip" data-auto="off">Generate only</button>
+                <button class="chip" data-auto="on">Send automatically</button>
+              </div>
+              <p class="hint">When off, the scheduler still generates alerts and notifies you, but waits for a manual Broadcast. Recommended until you've watched it for a week.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="sched-seed-notice" style="display:none;margin-top:16px;padding:12px 14px;border-radius:10px;
+             background:rgba(217,155,63,.12);border:1px solid rgba(217,155,63,.35);font-size:.85rem;color:var(--ochre-deep)">
+        </div>
+
+        <div id="sched-last-cycle" style="margin-top:14px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><span class="ico">📡</span> SMS provider</h3></div>
+        <div id="sms-status" style="font-size:.88rem;color:var(--ink-soft);line-height:1.85;margin-bottom:14px">
+          Loading…
+        </div>
+        <div class="field">
+          <label for="sms-test-to">Send a test message to</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <input class="input" id="sms-test-to" placeholder="+254 7xx xxx xxx" style="flex:1;min-width:180px">
+            <button class="btn btn-ochre btn-sm" id="btn-sms-test">Send test</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn btn-ghost btn-sm" id="btn-sms-log">Open dry-run log</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><span class="ico">📞</span> Voice calls</h3></div>
+        <div id="voice-status" style="font-size:.88rem;color:var(--ink-soft);line-height:1.85;margin-bottom:14px">
+          Loading…
+        </div>
+        <div class="field">
+          <label for="voice-test-to">Send a test call to</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <input class="input" id="voice-test-to" placeholder="+254 7xx xxx xxx" style="flex:1;min-width:180px">
+            <button class="btn btn-ochre btn-sm" id="btn-voice-test">Call me</button>
+          </div>
+          <p class="hint">Calls are billed per minute. A typical alert runs 20–30 seconds.</p>
+        </div>
+        <div id="voice-cost" style="font-size:.82rem;color:var(--ink-faint);margin-top:10px"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn btn-ghost btn-sm" id="btn-voice-log">Open voice log</button>
+          <button class="btn btn-ghost btn-sm" id="btn-voice-poll">Check call status</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><span class="ico">🔔</span> Notifications</h3></div>
+        <div class="field">
+          <label>When critical alerts are found</label>
+          <div class="chips" id="notif-chips">
+            <button class="chip on" data-notif="on">Send native toast</button>
+            <button class="chip" data-notif="off">Stay silent</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>SMS character hygiene</label>
+          <div class="chips" id="sms-sanitize-chips">
+            <button class="chip on" data-san="on">Auto-fix non-GSM-7</button>
+            <button class="chip" data-san="off">Leave as written</button>
+          </div>
+          <p class="hint">Auto-fix replaces em dashes, curly quotes, and unsupported accents before sending.</p>
+        </div>
+        <div class="field">
+          <label>Test notification</label>
+          <button class="btn btn-ghost btn-sm" id="btn-test-notif">Send a test toast</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3><span class="ico">📂</span> Data</h3></div>
+        <p style="font-size:.88rem;color:var(--ink-soft);margin-bottom:12px">
+          All farmer records and alerts are stored locally in a SQLite database.
+        </p>
+        <div id="data-path" style="font-family:Consolas,monospace;font-size:.78rem;
+          background:rgba(255,255,255,.7);padding:11px 13px;border-radius:9px;
+          border:1px solid rgba(140,115,80,.22);word-break:break-all;margin-bottom:14px;">
+          Loading…
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="btn-reveal">Open data folder</button>
+          <button class="btn btn-ghost btn-sm" id="btn-export2">Export farmers to CSV</button>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-head">
+          <h3><span class="ico">📬</span> Delivery receipts</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" id="rcpt-poll">↻ Poll now</button>
+            <button class="btn btn-ghost btn-sm" id="rcpt-log">Open log</button>
+          </div>
+        </div>
+
+        <div id="rcpt-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px;margin-bottom:20px">
+          Loading…
+        </div>
+
+        <p class="section-label" style="margin-bottom:8px">Recent messages</p>
+        <div style="max-height:340px;overflow-y:auto;border-radius:12px">
+          <table class="csv-preview">
+            <thead>
+              <tr>
+                <th style="width:24px"></th>
+                <th>Farmer</th>
+                <th>Rule</th>
+                <th>Sent</th>
+                <th>Status</th>
+                <th>Provider SID</th>
+              </tr>
+            </thead>
+            <tbody id="rcpt-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="rcpt-empty" style="text-align:center;margin-top:10px;display:none">
+          No messages have been sent yet.
+        </p>
+      </div>
+
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-head">
+          <h3><span class="ico">📟</span> USSD relay</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" id="ussd-sync">↻ Sync now</button>
+            <button class="btn btn-ghost btn-sm" id="ussd-health">Check relay</button>
+            <button class="btn btn-ghost btn-sm" id="ussd-log">Open log</button>
+          </div>
+        </div>
+
+        <div id="ussd-status" style="font-size:.88rem;color:var(--ink-soft);line-height:1.85;margin-bottom:18px">
+          Loading…
+        </div>
+
+        <div class="grid grid-2e" style="gap:20px">
+          <div>
+            <p class="section-label">Session analytics (last 7 days)</p>
+            <div id="ussd-analytics" style="font-size:.86rem;color:var(--ink-soft);line-height:1.85">
+              Loading…
+            </div>
+          </div>
+          <div>
+            <p class="section-label">Recent sessions</p>
+            <div style="max-height:280px;overflow-y:auto;border-radius:10px">
+              <table class="csv-preview">
+                <thead>
+                  <tr>
+                    <th>Phone</th>
+                    <th>Menu</th>
+                    <th>When</th>
+                  </tr>
+                </thead>
+                <tbody id="ussd-sessions-body">
+                  <tr><td colspan="3" style="text-align:center;color:var(--ink-faint);padding:20px">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column:1/-1">
+        <div class="card-head"><h3><span class="ico">ℹ️</span> System information</h3></div>
+        <div id="sysinfo" style="font-size:.86rem;color:var(--ink-soft);line-height:1.85">
+          Loading…
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ CSV IMPORT MODAL ============ -->
+<div class="modal-backdrop" id="csv-modal" role="dialog" aria-modal="true" aria-labelledby="csv-title">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow">Bulk import</p>
+        <h2 id="csv-title">Load farmers from CSV</h2>
+      </div>
+      <button class="modal-close" id="csv-close" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div id="csv-step-file">
+        <div class="dropzone" id="csv-dropzone">
+          <div class="dropzone-icon">📄</div>
+          <p class="dropzone-title">Drop a CSV file here</p>
+          <p class="dropzone-hint">or</p>
+          <button class="btn btn-ochre btn-sm" id="csv-browse">Choose file…</button>
+          <p class="dropzone-hint" style="margin-top:14px">
+            Not sure about the format? <a id="csv-template">Download a template</a>
+          </p>
+        </div>
+        <p class="hint" style="text-align:center;margin-top:14px">
+          Expected columns: name, phone, location, crop, planting date, language, channels.
+          Column names are detected automatically — you can remap them on the next screen.
+        </p>
+      </div>
+
+      <div id="csv-step-review" style="display:none">
+        <div class="file-info" id="csv-file-info"></div>
+
+        <p class="section-label">Default country</p>
+        <div class="country-row" id="csv-country-row" style="display:block"></div>
+
+        <p class="section-label">Map columns</p>
+        <div class="mapping-grid" id="csv-map-grid"></div>
+
+        <p class="section-label" style="margin-top:22px">Preview</p>
+        <div class="preview-summary" id="csv-preview-summary"></div>
+
+        <div style="max-height:340px;overflow-y:auto;border-radius:12px">
+          <table class="csv-preview">
+            <thead>
+              <tr>
+                <th style="width:26px"></th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Location</th>
+                <th>Crop</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="csv-preview-body"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="csv-preview-more" style="text-align:center;margin-top:8px"></p>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="csv-cancel">Cancel</button>
+      <button class="btn btn-primary" id="csv-import" disabled>Import 0 farmers</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FARMER EDIT MODAL ============ -->
+<div class="modal-backdrop" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+  <div class="modal-card" style="width:min(760px,100%)">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow" id="edit-eyebrow">Editing farmer</p>
+        <h2 id="edit-title">—</h2>
+      </div>
+      <button class="modal-close" id="edit-close" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <form id="edit-form" autocomplete="off">
+        <div class="field">
+          <label for="ef-name">Farmer's name</label>
+          <input class="input" id="ef-name" required>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="ef-phone">Phone number</label>
+            <input class="input" id="ef-phone" required>
+          </div>
+          <div class="field">
+            <label for="ef-loc">Location</label>
+            <select class="select" id="ef-loc" required></select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="ef-crop">Main crop</label>
+            <select class="select" id="ef-crop" required></select>
+          </div>
+          <div class="field">
+            <label for="ef-planted">Planting date</label>
+            <input class="input" type="date" id="ef-planted">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Language for messages</label>
+          <div class="chips" id="ef-lang">
+            <button type="button" class="chip" data-lang="en">English</button>
+            <button type="button" class="chip" data-lang="sw">Kiswahili</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Delivery channels</label>
+          <div class="chips" id="ef-channels">
+            <button type="button" class="chip" data-ch="sms">SMS</button>
+            <button type="button" class="chip" data-ch="voice">Voice call</button>
+            <button type="button" class="chip" data-ch="ussd">USSD</button>
+          </div>
+          <p class="hint">Only SMS and voice are delivered today. USSD is served from the relay.</p>
+        </div>
+      </form>
+
+      <hr class="divider">
+
+      <p class="eyebrow" style="margin-bottom:10px">Alert history</p>
+      <div id="edit-history">Loading…</div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm btn-danger-ghost" id="edit-archive">Archive farmer</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" id="edit-cancel">Cancel</button>
+        <button class="btn btn-primary" id="edit-save">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toasts"></div>
+
+<script src="sms-format.js"></script>
+<script src="engine.js"></script>
+<script src="renderer-csv.js"></script>
+<script>
+'use strict';
+
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+const isDesktop = typeof window.rainbrush !== 'undefined';
+
+/* ---- Shared engine into local scope ---- */
+const E = window.RainbrushEngine;
+const LOCATIONS = E.LOCATIONS;
+const CROPS = E.CROPS;
+const LANG_NAMES = E.LANG_NAMES;
+const CROP_COLORS = E.CROP_COLORS;
+const dayLabel = E.dayLabel;
+const dayLabelShort = E.dayLabelShort;
+const simulateForecast = E.simulateForecast;
+const fetchForecast = E.fetchForecast;
+
+/* ==================== Utilities ==================== */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+function toast(msg, kind = ''){
+  const el = document.createElement('div');
+  el.className = 'toast ' + kind;
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, 3400);
+}
+
+/* ==================== State ==================== */
+const state = {
+  farmers: [],
+  forecasts: {},
+  alerts: [],
+  selectedAlertId: null,
+  channel: 'sms',
+  filter: 'all',
+  galleryFilter: 'all',
+  stats: { sent:0, attempted:0 },
+  notifyOn: true,
+  smsSanitize: true,
+  allowMultiSegment: false,
+  sentSignatures: new Set(),
+  deliveryMap: {},
+  voiceMap: {}
+};
+
+/* ==================== Rendering ==================== */
+function srcBadge(fc){
+  if (!fc) return '';
+  return fc.source === 'live'
+    ? `<span class="src live"><span class="dot"></span>Live data</span>`
+    : `<span class="src sim"><span class="dot"></span>Modelled</span>`;
+}
+
+function renderStrip(container, fc){
+  if (!fc){ container.innerHTML = '<p class="hint">No forecast available.</p>'; return; }
+  const maxRain = Math.max(10, ...fc.days.map(d => d.rain));
+  container.innerHTML = fc.days.map((d, i) => {
+    const h = clamp((d.rain / maxRain) * 46, 3, 46);
+    return `<div class="fc-day ${i === 0 ? 'today' : ''}">
+      <div class="dow">${d.dow}</div>
+      <div class="num">${d.tmax}°</div>
+      <div class="tmin">${d.tmin}°</div>
+      <div class="fc-bar"><i style="height:${h}px"></i></div>
+      <div class="rain">💧${d.rain}<span style="opacity:.6">mm</span></div>
+      <div class="wind">${d.wind} km/h</div>
+    </div>`;
+  }).join('');
+}
+
+function interpret(fc){
+  if (!fc) return [];
+  const notes = [];
+  const d0 = fc.days[0];
+  const rain5 = fc.days.slice(0,5).reduce((s,d)=>s+d.rain,0);
+  const maxT = Math.max(...fc.days.map(d=>d.tmax));
+  const minT = Math.min(...fc.days.map(d=>d.tmin));
+  const maxW = Math.max(...fc.days.map(d=>d.wind));
+
+  if (d0.rain >= 45) notes.push({ c:'var(--terracotta)', t:`Heavy rain today — about ${d0.rain}mm. Hold off on fertiliser and spraying.` });
+  else if (d0.rain >= 10) notes.push({ c:'var(--sky)', t:`Useful rain today — about ${d0.rain}mm. A good day to plant or top-dress after it passes.` });
+  else if (d0.rain < 1) notes.push({ c:'var(--ochre)', t:`Dry today. Check soil moisture before applying anything.` });
+
+  if (rain5 < 3) notes.push({ c:'var(--ochre)', t:`Only ${Math.round(rain5)}mm expected over five days. Plan irrigation now.` });
+  else if (rain5 > 90) notes.push({ c:'var(--sky-deep)', t:`${Math.round(rain5)}mm forecast over five days — watch for waterlogging.` });
+
+  if (maxT >= 37) notes.push({ c:'var(--terracotta)', t:`Heat peaks at ${maxT}°C. Irrigate early morning or evening only.` });
+  if (minT <= 3)  notes.push({ c:'var(--sky-deep)', t:`Night temperatures drop to ${minT}°C — frost protection needed.` });
+  if (maxW >= 40) notes.push({ c:'var(--plum)', t:`Winds up to ${maxW} km/h. Secure structures and stake tall crops.` });
+
+  if (!notes.length) notes.push({ c:'var(--sage-deep)', t:`A steady, unremarkable week ahead. Good conditions for routine field work.` });
+  return notes;
+}
+
+function renderNotes(container, fc){
+  if (!fc){ container.innerHTML = '<p class="hint">No data.</p>'; return; }
+  container.innerHTML = interpret(fc).map(n =>
+    `<div style="display:flex;gap:11px;align-items:flex-start;margin-bottom:11px">
+      <span style="flex:none;width:9px;height:9px;border-radius:50%;background:${n.c};margin-top:7px;box-shadow:0 0 0 3px ${n.c}22"></span>
+      <span style="font-size:.89rem;line-height:1.55">${esc(n.t)}</span>
+    </div>`).join('');
+}
+
+function smsCountBadge(text){
+  const a = window.RainbrushSMS.analyze(text);
+  const tone = a.segments === 1
+    ? 'background:rgba(125,155,118,.18);border-color:rgba(125,155,118,.4);color:var(--sage-deep)'
+    : 'background:rgba(217,155,63,.20);border-color:rgba(217,155,63,.45);color:var(--ochre-deep)';
+
+  const label = a.segments === 1
+    ? `1 segment · ${a.chars}/${a.limit} chars`
+    : `${a.segments} segments · ${a.chars} chars (${a.encoding})`;
+
+  return `<p class="pill" style="display:inline-block;margin:14px auto 0;font-size:.7rem;${tone}">
+    ${a.encoding} · ${label}
+  </p>`;
+}
+
+function alertItemHTML(a, selected){
+  const sevLabel = { critical:'Critical', warning:'Warning', advisory:'Advisory', info:'Info' }[a.severity];
+  const chIcons = a.farmer.channels.map(c => c === 'sms' ? '💬' : c === 'voice' ? '📞' : '📟').join(' ');
+  const sig = a.farmer.id + '|' + a.rule.id + '|' + a.day.date;
+
+  const sentChip = state.sentSignatures.has(sig)
+    ? `<span class="pill" style="font-size:.66rem;background:rgba(125,155,118,.18);border-color:rgba(125,155,118,.4);color:var(--sage-deep)">✓ sent</span>`
+    : '';
+
+  const dStatus = state.deliveryMap[sig];
+  const deliveryChip = (function(){
+    if (!dStatus) return '';
+    const tones = {
+      delivered:   'background:rgba(125,155,118,.20);border-color:rgba(125,155,118,.45);color:var(--sage-deep)',
+      sent:        'background:rgba(111,150,184,.18);border-color:rgba(111,150,184,.4);color:var(--sky-deep)',
+      queued:      'background:rgba(111,150,184,.14);border-color:rgba(111,150,184,.32);color:var(--sky-deep)',
+      pending:     'background:rgba(140,115,80,.12);border-color:rgba(140,115,80,.28);color:var(--ink-faint)',
+      failed:      'background:rgba(192,95,60,.18);border-color:rgba(192,95,60,.4);color:var(--terracotta-d)',
+      undelivered: 'background:rgba(192,95,60,.14);border-color:rgba(192,95,60,.34);color:var(--terracotta-d)',
+      rejected:    'background:rgba(192,95,60,.18);border-color:rgba(192,95,60,.4);color:var(--terracotta-d)',
+      unknown:     'background:rgba(140,115,80,.12);border-color:rgba(140,115,80,.28);color:var(--ink-faint)',
+      'dry-run':   'background:rgba(217,155,63,.14);border-color:rgba(217,155,63,.34);color:var(--ochre-deep)'
+    };
+    const icons = {
+      delivered:'✓', sent:'↗', queued:'⋯', pending:'○',
+      failed:'✗', undelivered:'✗', rejected:'✗', unknown:'?', 'dry-run':'~'
+    };
+    const tone = tones[dStatus] || tones.pending;
+    const icon = icons[dStatus] || '○';
+    return `<span class="pill" style="font-size:.66rem;${tone}">${icon} ${dStatus}</span>`;
+  })();
+
+  const smsAnalysis = window.RainbrushSMS.analyze(a.text);
+  const segChip = smsAnalysis.segments === 1
+    ? `<span class="pill" style="font-size:.66rem;background:rgba(125,155,118,.15);border-color:rgba(125,155,118,.35);color:var(--sage-deep)">1 seg</span>`
+    : `<span class="pill" style="font-size:.66rem;background:rgba(217,155,63,.18);border-color:rgba(217,155,63,.4);color:var(--ochre-deep)">${smsAnalysis.segments} seg</span>`;
+
+  return `<div class="alert-item ${a.severity} ${selected ? 'sel' : ''}" data-id="${esc(a.id)}">
+    <div class="alert-top">
+      <div class="alert-title"><span>${a.rule.icon}</span> ${esc(a.title)}</div>
+      <span class="badge ${a.severity}">${sevLabel}</span>
+    </div>
+    <div class="alert-sub">${esc(a.farmer.name)} · ${esc(a.farmer.loc)} · ${esc(a.farmer.crop)} · ${esc(a.day.label)}</div>
+    <div class="alert-body">${esc(a.text)}</div>
+    <div class="alert-foot">
+      ${sentChip}${deliveryChip}${segChip}
+      <span class="pill" style="font-size:.68rem">${chIcons} ${esc(a.farmer.channels.join(' + '))}</span>
+      <span class="pill" style="font-size:.68rem">🗣 ${esc(LANG_NAMES[a.farmer.lang] || 'English')}</span>
+    </div>
+  </div>`;
+}
+
+function renderStudio(){
+  const locs = [...new Set(state.farmers.map(f => f.loc))];
+  $('#stat-farmers').textContent = state.farmers.length;
+  $('#stat-locations').textContent = `across ${locs.length} location${locs.length === 1 ? '' : 's'}`;
+
+  const crit = state.alerts.filter(a => a.severity === 'critical').length;
+  $('#stat-alerts').textContent = state.alerts.length;
+  $('#stat-critical').textContent = `${crit} critical`;
+  $('#stat-sent').textContent = state.stats.sent;
+  $('#stat-rate').textContent = state.stats.attempted
+    ? Math.round((state.stats.sent / state.stats.attempted) * 100) + '%' : '—';
+
+  let focusLoc = locs[0];
+  if (state.alerts.length){
+    const counts = {};
+    state.alerts.forEach(a => counts[a.farmer.loc] = (counts[a.farmer.loc] || 0) + 1);
+    focusLoc = Object.keys(counts).sort((a,b) => counts[b] - counts[a])[0];
+  }
+  const fc = state.forecasts[focusLoc];
+  $('#studio-loc-name').textContent = focusLoc || '—';
+  $('#studio-src').innerHTML = srcBadge(fc);
+  renderStrip($('#studio-strip'), fc);
+
+  $('#studio-notes').innerHTML = fc ? interpret(fc).slice(0,3).map(n =>
+    `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:9px">
+      <span style="flex:none;width:8px;height:8px;border-radius:50%;background:${n.c};margin-top:7px"></span>
+      <span>${esc(n.t)}</span>
+    </div>`).join('') : '';
+
+  const top = state.alerts.slice(0, 5);
+  const box = $('#studio-alerts');
+  if (!top.length){
+    box.innerHTML = `<div class="empty"><div class="big">🌾</div><h4>Nothing to paint yet</h4>
+      <p style="font-size:.85rem">No rules have tripped for the farms on your canvas.</p></div>`;
+  } else {
+    box.innerHTML = top.map(a => alertItemHTML(a, a.id === state.selectedAlertId)).join('');
+    $$('#studio-alerts .alert-item').forEach(el => {
+      el.addEventListener('click', () => {
+        state.selectedAlertId = el.dataset.id;
+        switchView('brushstrokes');
+      });
+    });
+  }
+}
+
+function renderSky(){
+  const sel = $('#sky-loc');
+  const locs = [...new Set(state.farmers.map(f => f.loc))];
+  const prev = sel.value;
+  sel.innerHTML = locs.map(l => `<option value="${esc(l)}">${esc(l)} — ${esc(state.forecasts[l]?.region || '')}</option>`).join('');
+  if (prev && locs.includes(prev)) sel.value = prev;
+
+  const loc = sel.value || locs[0];
+  const fc = state.forecasts[loc];
+  $('#sky-src').innerHTML = srcBadge(fc);
+  renderStrip($('#sky-strip'), fc);
+  renderNotes($('#sky-notes'), fc);
+
+  if (fc){
+    $('#sky-table').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:.83rem">
+        <thead><tr style="text-align:left;color:var(--ink-faint);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase">
+          <th style="padding:8px 6px;border-bottom:1px solid var(--line)">Day</th>
+          <th style="padding:8px 6px;border-bottom:1px solid var(--line)">Max</th>
+          <th style="padding:8px 6px;border-bottom:1px solid var(--line)">Min</th>
+          <th style="padding:8px 6px;border-bottom:1px solid var(--line)">Rain</th>
+          <th style="padding:8px 6px;border-bottom:1px solid var(--line)">Hum</th>
+          <th style="padding:8px 6px;border-bottom:1px solid var(--line)">Wind</th>
+        </tr></thead>
+        <tbody>${fc.days.map((d,i) => `
+          <tr style="${i===0?'background:rgba(217,155,63,.09)':''}">
+            <td style="padding:9px 6px;border-bottom:1px dashed rgba(140,115,80,.2);font-weight:600">${esc(d.dow)}</td>
+            <td style="padding:9px 6px;border-bottom:1px dashed rgba(140,115,80,.2)">${d.tmax}°C</td>
+            <td style="padding:9px 6px;border-bottom:1px dashed rgba(140,115,80,.2);color:var(--sky-deep)">${d.tmin}°C</td>
+            <td style="padding:9px 6px;border-bottom:1px dashed rgba(140,115,80,.2);font-weight:700;color:var(--sky-deep)">${d.rain}mm</td>
+            <td style="padding:9px 6px;border-bottom:1px dashed rgba(140,115,80,.2)">${d.hum}%</td>
+            <td style="padding:9px 6px;border-bottom:1px dashed rgba(140,115,80,.2)">${d.wind}</td>
+          </tr>`).join('')}
+        </tbody></table>`;
+  } else {
+    $('#sky-table').innerHTML = '<p class="hint">No data.</p>';
+  }
+}
+
+function renderGallery(){
+  const crops = [...new Set(state.farmers.map(f => f.crop))].sort();
+  $('#gallery-filters').innerHTML =
+    `<button class="chip ${state.galleryFilter === 'all' ? 'on' : ''}" data-gf="all">All crops</button>` +
+    crops.map(c => `<button class="chip ${state.galleryFilter === c ? 'on' : ''}" data-gf="${esc(c)}">${esc(c)}</button>`).join('');
+
+  $$('#gallery-filters .chip').forEach(b => b.addEventListener('click', () => {
+    state.galleryFilter = b.dataset.gf;
+    renderGallery();
+  }));
+
+  const q = ($('#gallery-search').value || '').toLowerCase().trim();
+  const list = state.farmers.filter(f => {
+    if (state.galleryFilter !== 'all' && f.crop !== state.galleryFilter) return false;
+    if (!q) return true;
+    return (f.name + ' ' + f.crop + ' ' + f.loc + ' ' + f.phone).toLowerCase().includes(q);
+  });
+
+  const grid = $('#gallery-grid');
+  if (!list.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="big">🖼</div>
+      <h4>No farmers match</h4><p style="font-size:.85rem">Try a different search or crop filter.</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(f => {
+    const alertsFor = state.alerts.filter(a => a.farmer.id === f.id);
+    const crit = alertsFor.filter(a => a.severity === 'critical').length;
+    const color = CROP_COLORS[f.crop] || 'var(--sage)';
+    const initials = f.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+    const age = f.planted ? Math.max(0, Math.round((Date.now() - new Date(f.planted).getTime()) / 86400000)) : null;
+
+    return `<div class="farmer" style="--accent:${color}">
+      <div class="farmer-top">
+        <div class="avatar" style="background:linear-gradient(150deg,${color},${color}cc)">${esc(initials)}</div>
+        <div><h4>${esc(f.name)}</h4>
+          <div class="loc">${esc(f.loc)} · ${esc(state.forecasts[f.loc]?.region || '')}</div></div>
+      </div>
+      <div class="farmer-meta">
+        <span class="pill">🌾 ${esc(f.crop)}</span>
+        <span class="pill">🗣 ${esc(LANG_NAMES[f.lang] || 'English')}</span>
+        ${f.channels.map(c => `<span class="pill">${c === 'sms' ? '💬' : c === 'voice' ? '📞' : '📟'} ${c}</span>`).join('')}
+      </div>
+      <div class="farmer-stats">
+        <div><strong>${alertsFor.length}</strong>alerts open</div>
+        <div><strong style="color:${crit ? 'var(--terracotta)' : 'inherit'}">${crit}</strong>critical</div>
+        <div><strong>${age !== null ? age : '—'}</strong>days since planting</div>
+      </div>
+      <button class="farmer-edit" data-edit="${esc(f.id)}" aria-label="Edit ${esc(f.name)}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        <span>Edit</span>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function renderAlerts(){
+  const counts = {
+    all: state.alerts.length,
+    critical: state.alerts.filter(a => a.severity === 'critical').length,
+    warning: state.alerts.filter(a => a.severity === 'warning').length,
+    advisory: state.alerts.filter(a => a.severity === 'advisory').length,
+    info: state.alerts.filter(a => a.severity === 'info').length
+  };
+
+  $('#alert-filters').innerHTML = ['all','critical','warning','advisory','info'].map(f =>
+    `<button class="chip ${state.filter === f ? 'on' : ''}" data-af="${f}">
+      ${f === 'all' ? 'All' : f[0].toUpperCase() + f.slice(1)} <span style="opacity:.6">${counts[f]}</span>
+    </button>`).join('');
+
+  $$('#alert-filters .chip').forEach(b => b.addEventListener('click', () => {
+    state.filter = b.dataset.af;
+    renderAlerts();
+  }));
+
+  let list = state.alerts;
+  if (state.filter !== 'all') list = list.filter(a => a.severity === state.filter);
+
+  const box = $('#alert-list');
+  if (!list.length){
+    box.innerHTML = `<div class="empty"><div class="big">🖌</div><h4>No brushstrokes here</h4>
+      <p style="font-size:.85rem">Nothing has tripped this filter yet.</p></div>`;
+  } else {
+    box.innerHTML = list.map(a => alertItemHTML(a, a.id === state.selectedAlertId)).join('');
+    $$('#alert-list .alert-item').forEach(el => {
+      el.addEventListener('click', () => {
+        state.selectedAlertId = el.dataset.id;
+        renderAlerts();
+      });
+    });
+  }
+
+  if (!state.selectedAlertId && list.length) state.selectedAlertId = list[0].id;
+  renderPhone();
+}
+
+function currentAlert(){
+  return state.alerts.find(a => a.id === state.selectedAlertId) || null;
+}
+
+function renderPhone(){
+  const wrap = $('#phone-wrap');
+  const a = currentAlert();
+  if (!a){
+    wrap.innerHTML = `<div class="empty" style="padding:30px 10px"><div class="big">📭</div>
+      <h4>No message selected</h4><p style="font-size:.84rem">Pick an alert on the left to preview it.</p></div>`;
+    return;
+  }
+  const msg = a.text;
+  const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+
+  if (state.channel === 'sms'){
+    wrap.innerHTML = `
+      <div class="phone"><div class="phone-screen">
+        <div class="ps-head">
+          <div class="ch">SMS · Rainbrush Alerts</div>
+          <div class="who">${esc(a.farmer.phone)}</div>
+        </div>
+        <div class="ps-body">
+          <div class="bubble">${esc(msg)}<div class="meta">${time} · delivered</div></div>
+          ${smsCountBadge(msg)}
+        </div>
+      </div></div>
+      <p class="hand" style="text-align:center;max-width:250px">Text reaches every phone, even the simplest one.</p>`;
+  } else if (state.channel === 'voice'){
+    const bars = Array.from({ length: 22 }, (_, i) =>
+      `<i style="animation-delay:${(i * 0.07).toFixed(2)}s"></i>`).join('');
+    wrap.innerHTML = `
+      <div class="phone"><div class="phone-screen"><div class="ivr-screen">
+        <div class="calling">Incoming call</div>
+        <div class="num">Rainbrush</div>
+        <div style="font-size:.76rem;opacity:.7">${esc(a.farmer.phone)}</div>
+        <div class="wave">${bars}</div>
+        <div class="ivr-script">${esc(a.voiceText || msg)}</div>
+        <div style="font-size:.7rem;opacity:.6;margin-top:8px">
+          ~${Math.round((a.voiceText || msg).split(/\s+/).length / 2.5)}s · billed per minute
+        </div>
+        <div style="font-size:.68rem;opacity:.55;margin-top:12px">Press 1 to repeat · Press 2 for market prices</div>
+        <button class="ivr-btn" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25c1.1.37 2.3.57 3.6.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1l-2.22 2.2Z" fill="#fff"/>
+          </svg>
+        </button>
+      </div></div></div>
+      <p class="hand" style="text-align:center;max-width:250px">Spoken aloud in ${esc(LANG_NAMES[a.farmer.lang])} — no reading needed.</p>`;
+  } else {
+    wrap.innerHTML = `
+      <div class="phone"><div class="phone-screen">
+        <div class="ussd-screen"><span class="dim">*384*77#</span>
+
+<span class="dim">CON Rainbrush</span>
+1. Weather today
+2. 7-day outlook
+3. My crop advice
+4. Market prices
+5. Talk to an agent
+
+<span class="dim">Reply:</span> 3
+
+<span class="dim">CON ${esc(a.farmer.crop)} · ${esc(a.farmer.loc)}</span>
+${esc(msg)}
+
+<span class="dim">1. Back   2. Main menu</span>
+Reply: <span class="cur">_</span></div>
+      </div></div>
+      <p class="hand" style="text-align:center;max-width:250px">Farmers pull what they need, when they need it.</p>`;
+  }
+}
+
+function renderRegPreview(){
+  const name = $('#f-name').value.trim() || 'Your farmer';
+  const loc  = $('#f-loc').value || LOCATIONS[0].name;
+  const crop = $('#f-crop').value || 'Maize';
+  const lang = $('#lang-chips .chip.on')?.dataset.lang || 'en';
+  const chans = $$('#ch-chips .chip.on').map(c => c.dataset.ch);
+
+  const fc = state.forecasts[loc] || simulateForecast(LOCATIONS.find(l => l.name === loc) || LOCATIONS[0]);
+  const fakeFarmer = { name, loc, crop, lang };
+
+  let chosen = null;
+  for (const rule of E.RULES){
+    for (let i = 0; i < fc.days.length; i++){
+      const remaining = fc.days.slice(i);
+      const rel = Object.assign({}, fc.days[i], { label: dayLabel(fc.days[i].date, i), remaining });
+      if (rule.test(rel)){ chosen = { rule, rel }; break; }
+    }
+    if (chosen) break;
+  }
+
+  const box = $('#reg-preview');
+  if (!chosen){
+    box.innerHTML = `<div class="empty"><div class="big">🌤</div><h4>Nothing urgent</h4>
+      <p style="font-size:.85rem">No rule currently trips for ${esc(loc)}. They'll still receive routine advisories.</p></div>`;
+    return;
+  }
+  const tpl = chosen.rule.msg[lang] || chosen.rule.msg.en;
+  const text = tpl(fakeFarmer, chosen.rel);
+
+  box.innerHTML = `
+    <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="badge ${chosen.rule.sev}">${chosen.rule.sev}</span>
+      <span class="pill">${chosen.rule.icon} ${esc(chosen.rule.label[lang] || chosen.rule.label.en)}</span>
+      <span class="pill">🗣 ${esc(LANG_NAMES[lang])}</span>
+    </div>
+    <div class="bubble" style="background:#fffdf8;border:1px solid rgba(140,115,80,.2)">${esc(text)}</div>
+    <div style="margin-top:16px;font-size:.8rem;color:var(--ink-faint)">
+      Delivered via ${chans.length ? chans.map(c => esc(c)).join(' + ') : 'SMS'}.
+    </div>`;
+}
+
+async function renderSettings(){
+  if (!isDesktop){
+    $('#data-path').textContent = 'Browser mode — no local database.';
+    $('#sysinfo').textContent = 'Running in a browser. Desktop features are unavailable.';
+    $('#sms-status').textContent = 'SMS dispatch requires the desktop build.';
+    $('#voice-status').textContent = 'Voice dispatch requires the desktop build.';
+    $('#ussd-status').textContent = 'USSD relay requires the desktop build.';
+    return;
+  }
+
+  const info = await window.rainbrush.appInfo();
+  $('#data-path').textContent = info.dataPath;
+  $('#sysinfo').innerHTML = `
+    <div><strong>Rainbrush:</strong> v${esc(info.version)}</div>
+    <div><strong>Platform:</strong> ${esc(info.platform)} ${esc(info.arch)}${info.isWin11 ? ' · Windows 11' : ''}</div>
+    <div><strong>Electron:</strong> ${esc(info.electron)}</div>
+    <div><strong>Chromium:</strong> ${esc(info.chrome)}</div>
+    <div><strong>Node:</strong> ${esc(info.node)}</div>`;
+
+  /* ---- SMS ---- */
+  const smsInfo = await window.rainbrush.smsInfo();
+  const smsBadge = smsInfo.configured
+    ? `<span class="badge ${smsInfo.dryRun ? 'advisory' : 'info'}">${smsInfo.dryRun ? 'Dry run' : 'Live'}</span>`
+    : `<span class="badge critical">Not configured</span>`;
+
+  $('#sms-status').innerHTML = `
+    <div style="margin-bottom:10px">${smsBadge}</div>
+    <div><strong>Provider:</strong> ${esc(smsInfo.provider)}</div>
+    <div><strong>Rate cap:</strong> ${smsInfo.maxPerSecond} messages / second</div>
+    <div><strong>Credentials:</strong> ${smsInfo.configured ? '✓ present' : '✗ missing'}</div>
+    ${smsInfo.dryRun
+      ? '<div style="margin-top:10px;color:var(--ochre-deep)">Dry run is on — set <code>SMS_DRY_RUN=0</code> in <code>.env</code> to send real messages.</div>'
+      : ''}`;
+
+  /* ---- Voice ---- */
+  const vInfo = await window.rainbrush.voiceInfo();
+  const vBadge = vInfo.configured
+    ? `<span class="badge ${vInfo.dryRun ? 'advisory' : 'info'}">${vInfo.dryRun ? 'Dry run' : 'Live'}</span>`
+    : `<span class="badge critical">Not configured</span>`;
+
+  $('#voice-status').innerHTML = `
+    <div style="margin-bottom:10px">${vBadge}</div>
+    <div><strong>Provider:</strong> Africa's Talking Voice</div>
+    <div><strong>Caller ID:</strong> ${esc(vInfo.callerId || 'not set')}</div>
+    <div><strong>Rate:</strong> ${vInfo.maxPerSecond} calls / second</div>
+    <div><strong>Calls dispatched:</strong> ${vInfo.callCount}</div>
+    ${vInfo.dryRun
+      ? '<div style="margin-top:10px;color:var(--ochre-deep)">Dry run is on — calls are logged, not placed.</div>'
+      : ''}`;
+
+  const sample = state.alerts[0];
+  if (sample){
+    const est = await window.rainbrush.voiceEstimate(sample.voiceText || sample.text, '+254');
+    $('#voice-cost').textContent =
+      `Sample call: ~${est.seconds}s, ~$${est.estimated} per farmer.`;
+  }
+
+  /* ---- Scheduler ---- */
+  const sched = await window.rainbrush.schedulerStatus();
+  const schedBadge = sched.enabled
+    ? (sched.running ? `<span class="badge warning">Running</span>` : `<span class="badge info">Idle</span>`)
+    : `<span class="badge critical">Disabled</span>`;
+  $('#sched-status-badge').innerHTML = schedBadge;
+
+  const fmt = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const diff = Date.now() - d.getTime();
+    const mins = Math.round(Math.abs(diff) / 60000);
+    const relative = diff > 0
+      ? (mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins/60)}h ago`)
+      : (mins < 60 ? `in ${mins}m` : `in ${Math.round(mins/60)}h`);
+    return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) + ` (${relative})`;
+  };
+
+  const last = sched.lastResult;
+  const lastSummary = last
+    ? `<div><strong>Last cycle:</strong> ${esc(last.trigger)} · ${fmt(last.finishedAt)}</div>
+       <div style="padding-left:14px;margin-top:4px">
+         ${last.farmers} farmers · ${last.generated} alerts · ${last.pending} new · ${last.sent} sent
+       </div>`
+    : `<div><strong>No cycles run yet.</strong></div>`;
+
+  $('#sched-summary').innerHTML = `
+    <div><strong>Status:</strong> ${sched.enabled ? 'active' : 'paused'}</div>
+    <div><strong>Interval:</strong> ${sched.intervalHours} hours</div>
+    <div><strong>Auto-send:</strong> ${sched.autoSend ? 'on' : 'off'}</div>
+    <div><strong>Next run:</strong> ${fmt(sched.nextRun)}</div>
+    ${lastSummary}
+  `;
+
+  $('#sched-interval').value = String(sched.intervalHours);
+
+  $$('#sched-autosend .chip').forEach(c => {
+    c.classList.toggle('on', (c.dataset.auto === 'on') === sched.autoSend);
+  });
+
+  const seedFarmers = state.farmers.filter(f => f.is_seed === 1 || /^F00\d$/.test(f.id));
+  const notice = $('#sched-seed-notice');
+  if (seedFarmers.length && !sched.allowSeedSend){
+    notice.style.display = '';
+    notice.innerHTML = `
+      <strong>⚠ ${seedFarmers.length} seed farmer${seedFarmers.length === 1 ? '' : 's'} on the canvas.</strong>
+      These use real-format phone numbers and will NOT be sent to by the scheduler.
+      Delete them (or set <code>ALLOW_SEED_SEND=1</code> in <code>.env</code>) before going live.
+    `;
+  } else {
+    notice.style.display = 'none';
+  }
+
+  if (last){
+    $('#sched-last-cycle').innerHTML = `
+      <div class="divider"></div>
+      <p class="eyebrow">Last cycle detail</p>
+      <div style="font-size:.83rem;color:var(--ink-soft);line-height:1.75;margin-top:8px">
+        <div>Trigger: <strong>${esc(last.trigger)}</strong></div>
+        <div>Duration: <strong>${last.durationMs}ms</strong></div>
+        <div>Forecasts: <strong>${last.liveForecasts || 0} live · ${last.modelledForecasts || 0} modelled</strong></div>
+      </div>
+    `;
+  }
+
+  /* ---- Delivery receipts ---- */
+  try {
+    const rs = await window.rainbrush.receiptsSummary();
+
+    const cards = [
+      { key:'delivered',   label:'Delivered',   color:'var(--sage-deep)' },
+      { key:'sent',        label:'Sent',        color:'var(--sky-deep)' },
+      { key:'queued',      label:'Queued',      color:'var(--sky-deep)' },
+      { key:'pending',     label:'Pending',     color:'var(--ink-faint)' },
+      { key:'failed',      label:'Failed',      color:'var(--terracotta-d)' },
+      { key:'undelivered', label:'Undelivered', color:'var(--terracotta-d)' },
+      { key:'unknown',     label:'Unknown',     color:'var(--ink-faint)' }
+    ];
+
+    $('#rcpt-summary').innerHTML = cards.map(c => `
+      <div style="padding:12px 14px;border-radius:12px;background:rgba(255,253,247,.7);
+                  border:1px solid rgba(140,115,80,.2)">
+        <div style="font-size:.66rem;font-weight:700;letter-spacing:.12em;
+                    text-transform:uppercase;color:var(--ink-faint)">${c.label}</div>
+        <div style="font-family:var(--display);font-size:1.6rem;font-weight:900;
+                    color:${c.color};margin-top:2px">${rs[c.key] || 0}</div>
+      </div>
+    `).join('');
+
+    const recent = await window.rainbrush.receiptsRecent(50);
+    const tbody = $('#rcpt-body');
+    const emptyMsg = $('#rcpt-empty');
+
+    if (!recent.length){
+      tbody.innerHTML = '';
+      emptyMsg.style.display = '';
+    } else {
+      emptyMsg.style.display = 'none';
+      const icons = {
+        delivered:'✓', sent:'↗', queued:'⋯', pending:'○',
+        failed:'✗', undelivered:'✗', rejected:'✗', unknown:'?', 'dry-run':'~'
+      };
+      const rowClass = (s) => s === 'delivered' ? 'row-ok'
+                             : (s === 'failed' || s === 'undelivered' || s === 'rejected') ? 'row-error'
+                             : s === 'unknown' || s === 'pending' ? 'row-warn'
+                             : '';
+
+      tbody.innerHTML = recent.map(r => {
+        const s = r.delivery_status || 'pending';
+        const sent = r.sent_at ? new Date(r.sent_at).toLocaleString([], {
+          month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+        }) : '—';
+        const sid = r.provider_sid ? (r.provider_sid.length > 18
+          ? r.provider_sid.slice(0, 16) + '…'
+          : r.provider_sid) : '—';
+        return `<tr class="${rowClass(s)}">
+          <td class="status">${icons[s] || '○'}</td>
+          <td>${esc(r.farmer_name || '—')}</td>
+          <td style="font-size:.76rem;color:var(--ink-faint)">${esc(r.rule_id || '—')}</td>
+          <td style="font-size:.76rem">${esc(sent)}</td>
+          <td style="font-weight:700;text-transform:capitalize">${esc(s)}</td>
+          <td style="font-family:Consolas,monospace;font-size:.72rem;color:var(--ink-faint)">${esc(sid)}</td>
+        </tr>`;
+      }).join('');
+    }
+  } catch (err){
+    $('#rcpt-summary').textContent = 'Could not load receipts.';
+    console.error(err);
+  }
+
+  /* ---- USSD relay ---- */
+  try {
+    const uInfo = await window.rainbrush.ussdInfo();
+
+    const uBadge = uInfo.configured
+      ? `<span class="badge info">Configured</span>`
+      : `<span class="badge critical">Not configured</span>`;
+
+    $('#ussd-status').innerHTML = `
+      <div style="margin-bottom:8px">${uBadge}</div>
+      <div><strong>Relay URL:</strong> ${esc(uInfo.relayUrl || 'not set')}</div>
+      <div><strong>Last push:</strong> ${uInfo.lastPush ? new Date(uInfo.lastPush).toLocaleString() : '—'}</div>
+      <div><strong>Last pull:</strong> ${uInfo.lastPull ? new Date(uInfo.lastPull).toLocaleString() : '—'}</div>
+      <div><strong>Push errors:</strong> ${uInfo.pushErrors} · <strong>Pull errors:</strong> ${uInfo.pullErrors}</div>
+      ${!uInfo.configured
+        ? '<div style="margin-top:10px;color:var(--ochre-deep)">Set <code>USSD_RELAY_URL</code> and <code>USSD_RELAY_SECRET</code> in <code>.env</code>, then restart.</div>'
+        : ''}
+    `;
+
+    if (uInfo.configured){
+      const analytics = await window.rainbrush.ussdAnalytics();
+      if (analytics.ok && analytics.totals){
+        const menuLines = (analytics.byMenu || [])
+          .map(m => `<div style="padding-left:14px">${esc(m.last_menu)}: <strong>${m.n}</strong></div>`)
+          .join('');
+        $('#ussd-analytics').innerHTML = `
+          <div><strong>${analytics.totals.total}</strong> sessions from <strong>${analytics.totals.farmers}</strong> farmers</div>
+          <div style="margin-top:8px">By menu:</div>
+          ${menuLines || '<div style="padding-left:14px;color:var(--ink-faint)">No sessions yet</div>'}
+        `;
+      } else {
+        $('#ussd-analytics').textContent = analytics.error || 'No data.';
+      }
+
+      const sess = await window.rainbrush.ussdSessions(50);
+      const tbody = $('#ussd-sessions-body');
+      if (sess.ok && sess.sessions.length){
+        tbody.innerHTML = sess.sessions.map(s => `
+          <tr>
+            <td><code style="font-size:.76rem">${esc(s.phone)}</code></td>
+            <td style="font-size:.78rem">${esc(s.last_menu || '—')}</td>
+            <td style="font-size:.76rem;color:var(--ink-faint)">${esc(new Date(s.created_at).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }))}</td>
+          </tr>
+        `).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--ink-faint);padding:20px">No sessions yet.</td></tr>';
+      }
+    } else {
+      $('#ussd-analytics').textContent = 'Configure the relay to see analytics.';
+      $('#ussd-sessions-body').innerHTML =
+        '<tr><td colspan="3" style="text-align:center;color:var(--ink-faint);padding:20px">Relay not configured.</td></tr>';
+    }
+  } catch (err){
+    console.error(err);
+    $('#ussd-status').textContent = 'Could not load USSD status.';
+  }
+}
+
+/* ==================== Farmer Editor ==================== */
+const editor = {
+  farmerId: null,
+  original: null,
+  working: { lang: 'en', channels: ['sms'] }
+};
+
+function openEditor(id){
+  if (!isDesktop) return;
+
+  const farmer = state.farmers.find(f => f.id === id);
+  if (!farmer){
+    toast('Farmer not found.', 'warn');
+    return;
+  }
+
+  editor.farmerId = id;
+  editor.original = JSON.parse(JSON.stringify(farmer));
+  editor.working.lang = farmer.lang || 'en';
+  editor.working.channels = Array.isArray(farmer.channels) ? farmer.channels.slice() : ['sms'];
+
+  const locSel = $('#ef-loc');
+  if (!locSel.options.length){
+    locSel.innerHTML = LOCATIONS
+      .map(l => `<option value="${esc(l.name)}">${esc(l.name)} — ${esc(l.region)}</option>`)
+      .join('');
+  }
+  const cropSel = $('#ef-crop');
+  if (!cropSel.options.length){
+    cropSel.innerHTML = CROPS.map(c => `<option>${esc(c)}</option>`).join('');
+  }
+
+  $('#edit-title').textContent = farmer.name;
+  $('#edit-eyebrow').textContent = 'Editing ' + farmer.id;
+  $('#ef-name').value    = farmer.name || '';
+  $('#ef-phone').value   = farmer.phone || '';
+  $('#ef-loc').value     = farmer.loc || LOCATIONS[0].name;
+  $('#ef-crop').value    = farmer.crop || 'Maize';
+  $('#ef-planted').value = farmer.planted || '';
+
+  $$('#ef-lang .chip').forEach(c =>
+    c.classList.toggle('on', c.dataset.lang === editor.working.lang)
+  );
+  $$('#ef-channels .chip').forEach(c =>
+    c.classList.toggle('on', editor.working.channels.includes(c.dataset.ch))
+  );
+
+  $('#edit-archive').disabled = false;
+  $('#edit-archive').textContent = 'Archive farmer';
+
+  renderEditorHistory(id);
+
+  $('#edit-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => $('#ef-name').focus(), 80);
+}
+
+function closeEditor(){
+  $('#edit-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  editor.farmerId = null;
+  editor.original = null;
+}
+
+async function renderEditorHistory(id){
+  const box = $('#edit-history');
+  box.innerHTML = '<p class="hint">Loading…</p>';
+
+  let rows = [];
+  try {
+    rows = await window.rainbrush.farmerAlerts(id);
+  } catch (e){ console.error(e); }
+
+  if (!rows.length){
+    box.innerHTML = `<p class="edit-history-empty">No alerts generated yet.</p>`;
+    return;
+  }
+
+  const counts = { critical:0, warning:0, advisory:0, info:0 };
+  rows.forEach(r => { if (counts[r.severity] != null) counts[r.severity]++; });
+
+  const sevLabels = { critical:'Critical', warning:'Warning', advisory:'Advisory', info:'Info' };
+  const countHTML = ['critical','warning','advisory','info']
+    .filter(k => counts[k] > 0)
+    .map(k => `<span class="badge ${k}">${counts[k]} ${sevLabels[k].toLowerCase()}</span>`)
+    .join('');
+
+  const iconFor = (title) => {
+    const t = title.toLowerCase();
+    if (t.includes('rain')) return '🌧';
+    if (t.includes('wind') || t.includes('upepo')) return '💨';
+    if (t.includes('frost') || t.includes('baridi')) return '❄️';
+    if (t.includes('heat') || t.includes('joto')) return '🔥';
+    if (t.includes('dry') || t.includes('kiangazi')) return '🏜';
+    if (t.includes('disease') || t.includes('ukungu')) return '🍄';
+    if (t.includes('pest') || t.includes('wadudu')) return '🐛';
+    if (t.includes('planting') || t.includes('kupanda')) return '🌱';
+    return '📋';
+  };
+
+  const fmt = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const diff = Date.now() - d.getTime();
+    const mins = Math.round(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return hours + 'h ago';
+    const days = Math.round(hours / 24);
+    if (days < 7) return days + 'd ago';
+    return d.toLocaleDateString();
+  };
+
+  box.innerHTML = `
+    <div class="edit-history-counts">${countHTML}</div>
+    <div class="edit-history-list">
+      ${rows.slice(0, 8).map(r => `
+        <div class="edit-history-item">
+          <span class="icon">${iconFor(r.title)}</span>
+          <div>
+            <div class="title">${esc(r.title)}</div>
+            <div class="when">${esc(fmt(r.created_at))} · ${r.delivered ? 'delivered' : 'not yet sent'}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function saveEditor(){
+  if (!editor.farmerId) return;
+
+  const name  = $('#ef-name').value.trim();
+  const phone = $('#ef-phone').value.trim();
+  const loc   = $('#ef-loc').value;
+  const crop  = $('#ef-crop').value;
+  const planted = $('#ef-planted').value;
+
+  if (!name || !phone){ toast('Name and phone number are required.', 'warn'); return; }
+
+  const channels = $$('#ef-channels .chip.on').map(c => c.dataset.ch);
+  if (!channels.length){ toast('At least one delivery channel is required.', 'warn'); return; }
+
+  const updated = {
+    id: editor.farmerId,
+    name, phone, loc, crop, planted,
+    lang: editor.working.lang,
+    channels
+  };
+
+  const btn = $('#edit-save');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const r = await window.rainbrush.updateFarmer(updated);
+    if (!r.ok){
+      btn.disabled = false;
+      btn.textContent = 'Save changes';
+      toast('Save failed: ' + (r.error || 'unknown'), 'warn');
+      return;
+    }
+
+    const idx = state.farmers.findIndex(f => f.id === editor.farmerId);
+    if (idx !== -1) state.farmers[idx] = { ...state.farmers[idx], ...updated };
+
+    state.alerts = E.generateAlerts(state.farmers, state.forecasts);
+
+    if (state.alerts.length){
+      try {
+        await window.rainbrush.saveAlerts(state.alerts.map(a => ({
+          id: a.id, farmerId: a.farmer.id, severity: a.severity,
+          title: a.title, body: a.text, lang: a.farmer.lang
+        })));
+      } catch {}
+    }
+
+    toast(`${name} updated.`, 'ok');
+    closeEditor();
+
+    renderGallery();
+    renderStudio();
+    renderAlerts();
+  } catch (err){
+    toast('Save failed: ' + (err.message || err), 'warn');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save changes';
+  }
+}
+
+async function archiveEditor(){
+  if (!editor.farmerId) return;
+  const farmer = state.farmers.find(f => f.id === editor.farmerId);
+  if (!farmer) return;
+
+  const ok = confirm(
+    `Archive ${farmer.name}?\n\nThey will no longer receive alerts. Their history stays in the database.`
+  );
+  if (!ok) return;
+
+  const btn = $('#edit-archive');
+  btn.disabled = true;
+  btn.textContent = 'Archiving…';
+
+  try {
+    await window.rainbrush.removeFarmer(editor.farmerId);
+    state.farmers = state.farmers.filter(f => f.id !== editor.farmerId);
+    state.alerts  = E.generateAlerts(state.farmers, state.forecasts);
+
+    toast(`${farmer.name} archived.`, 'ok');
+    closeEditor();
+
+    renderGallery();
+    renderStudio();
+    renderAlerts();
+  } catch (err){
+    btn.disabled = false;
+    btn.textContent = 'Archive farmer';
+    toast('Archive failed: ' + (err.message || err), 'warn');
+  }
+}
+
+/* ==================== View switching ==================== */
+function switchView(name){
+  $$('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+  window.scrollTo({ top:0, behavior:'smooth' });
+
+  if (name === 'studio') renderStudio();
+  if (name === 'sky') renderSky();
+  if (name === 'gallery') renderGallery();
+  if (name === 'brushstrokes') renderAlerts();
+  if (name === 'newcanvas') renderRegPreview();
+  if (name === 'settings') renderSettings();
+}
+
+/* ==================== Broadcast ==================== */
+let broadcasting = false;
+let smsProgressHandler = null;
+
+async function broadcast(){
+  if (broadcasting) return;
+  if (!state.alerts.length){ toast('Nothing to broadcast.', 'warn'); return; }
+
+  const info = isDesktop
+    ? await window.rainbrush.smsInfo()
+    : { configured:false, dryRun:true, provider:'browser' };
+
+  if (isDesktop && !info.configured && !info.dryRun){
+    toast(`SMS provider "${info.provider}" is not configured. Check your .env file.`, 'warn');
+    return;
+  }
+
+  const longOnes = state.alerts.filter(a => {
+    if (!a.farmer.channels.includes('sms')) return false;
+    return window.RainbrushSMS.analyze(a.text).segments > 1;
+  });
+
+  if (longOnes.length && !state.allowMultiSegment){
+    const proceed = confirm(
+      `${longOnes.length} alert${longOnes.length === 1 ? '' : 's'} will send as 2+ SMS segments.\n\n` +
+      `This doubles the cost of those messages.\n\nSend anyway?`
+    );
+    if (!proceed){ toast('Broadcast cancelled.', 'warn'); return; }
+    state.allowMultiSegment = true;
+  }
+
+  broadcasting = true;
+  const panel = $('#bcast-panel');
+  const fill  = $('#bcast-fill');
+  const pctEl = $('#bcast-pct');
+  const cntEl = $('#bcast-count');
+  const stEl  = $('#bcast-status');
+  const chEl  = $('#bcast-channels');
+
+  panel.classList.add('on');
+  stEl.textContent = info.dryRun
+    ? 'Dry run — no messages will actually send…'
+    : `Sending real messages via ${info.provider}…`;
+  fill.style.width = '0%';
+  pctEl.textContent = '0%';
+
+  const jobs = [];
+  state.alerts.forEach(a => {
+    a.farmer.channels.forEach(ch => {
+      if (ch === 'sms'){
+        const sig = a.farmer.id + '|' + a.rule.id + '|' + a.day.date;
+        jobs.push({
+          to: a.farmer.phone,
+          body: state.smsSanitize !== false
+            ? window.RainbrushSMS.sanitize(a.text).text
+            : a.text,
+          signature: sig,
+          alertId: a.id,
+          farmerId: a.farmer.id,
+          farmerName: a.farmer.name,
+          ruleId: a.rule.id,
+          dayDate: a.day.date,
+          severity: a.severity
+        });
+      }
+    });
+  });
+
+  if (!jobs.length){
+    stEl.textContent = 'No SMS recipients in the current alerts.';
+    broadcasting = false;
+    return;
+  }
+
+  chEl.textContent = 'SMS';
+  cntEl.textContent = `0 of ${jobs.length} messages`;
+
+  if (isDesktop){
+    if (smsProgressHandler) window.rainbrush.offSmsProgress();
+    smsProgressHandler = (p) => {
+      const done = p.index + 1;
+      const pct  = Math.round((done / p.total) * 100);
+      fill.style.width = pct + '%';
+      pctEl.textContent = pct + '%';
+      cntEl.textContent = `${done} of ${p.total} messages`;
+      stEl.textContent = p.result.ok
+        ? `✓ ${p.job.farmerName} — ${p.result.sid || 'sent'}`
+        : `✗ ${p.job.farmerName} — ${p.result.error}`;
+    };
+    window.rainbrush.onSmsProgress(smsProgressHandler);
+  }
+
+  const summary = { attempted:0, delivered:0, failed:0, voiceDispatched:0, voiceFailed:0 };
+
+  if (isDesktop){
+    const result = await window.rainbrush.smsSendBatch(jobs);
+    summary.attempted = result.attempted;
+    summary.delivered = result.delivered;
+    summary.failed    = result.failed;
+    window.rainbrush.offSmsProgress();
+    smsProgressHandler = null;
+  } else {
+    for (let i = 0; i < jobs.length; i++){
+      await new Promise(r => setTimeout(r, 60 + Math.random() * 70));
+      const pct = Math.round(((i + 1) / jobs.length) * 100);
+      fill.style.width = pct + '%';
+      pctEl.textContent = pct + '%';
+      cntEl.textContent = `${i + 1} of ${jobs.length} messages`;
+      stEl.textContent = `Simulated send to ${jobs[i].farmerName}…`;
+    }
+    summary.attempted = jobs.length;
+    summary.delivered = jobs.length;
+  }
+
+  state.stats.attempted += summary.attempted;
+  state.stats.sent      += summary.delivered;
+
+  if (isDesktop){
+    await window.rainbrush.bumpStat('attempted', summary.attempted);
+    await window.rainbrush.bumpStat('sent', summary.delivered);
+  }
+
+  /* ---- Voice ---- */
+  const voiceJobs = [];
+  state.alerts.forEach(a => {
+    a.farmer.channels.forEach(ch => {
+      if (ch === 'voice'){
+        const sig = a.farmer.id + '|' + a.rule.id + '|' + a.day.date;
+        voiceJobs.push({
+          to: a.farmer.phone,
+          text: a.voiceText || a.text,
+          signature: sig,
+          farmerId: a.farmer.id,
+          farmerName: a.farmer.name,
+          alertId: a.id,
+          clientRequestId: 'manual-' + a.farmer.id + '-' + a.day.date
+        });
+      }
+    });
+  });
+
+  if (voiceJobs.length && isDesktop){
+    const vInfo = await window.rainbrush.voiceInfo();
+    if (!vInfo.configured && !vInfo.dryRun){
+      toast('Voice is not configured — skipping voice dispatch.', 'warn');
+    } else {
+      stEl.textContent = vInfo.dryRun
+        ? `Dry run — logging ${voiceJobs.length} voice calls…`
+        : `Calling ${voiceJobs.length} farmer${voiceJobs.length === 1 ? '' : 's'}…`;
+      cntEl.textContent = `0 of ${voiceJobs.length} calls`;
+
+      window.rainbrush.onVoiceProgress((p) => {
+        const done = p.index + 1;
+        const pct = Math.round((done / p.total) * 100);
+        fill.style.width = pct + '%';
+        pctEl.textContent = pct + '%';
+        cntEl.textContent = `${done} of ${p.total} calls`;
+        stEl.textContent = p.result.ok
+          ? `📞 ${p.job.farmerName} — ${p.result.status}`
+          : `✗ ${p.job.farmerName} — ${p.result.error}`;
+      });
+
+      const vResult = await window.rainbrush.voiceDispatch(voiceJobs);
+      summary.voiceDispatched = vResult.dispatched;
+      summary.voiceFailed = vResult.failed;
+    }
+  }
+
+  fill.style.width = '100%';
+  pctEl.textContent = '100%';
+  stEl.textContent = summary.failed
+    ? `Broadcast complete — ${summary.failed} failed`
+    : '✓ Broadcast complete';
+  cntEl.textContent = `${summary.delivered} delivered of ${summary.attempted} attempted` +
+    (summary.voiceDispatched ? ` · ${summary.voiceDispatched} calls` : '');
+  chEl.textContent = info.dryRun ? 'Dry run' : info.provider;
+
+  toast(
+    info.dryRun
+      ? `Dry run complete — ${summary.delivered} messages logged.`
+      : `Broadcast complete — ${summary.delivered} of ${summary.attempted} delivered.`,
+    summary.failed ? 'warn' : 'ok'
+  );
+
+  await refreshSentSignatures();
+  await refreshDeliveryMap();
+
+  broadcasting = false;
+  renderStudio();
+  renderAlerts();
+
+  if (isDesktop && state.notifyOn){
+    window.rainbrush.notify({
+      title: info.dryRun ? 'Rainbrush — dry run finished' : 'Rainbrush — broadcast finished',
+      body: `${summary.delivered} of ${summary.attempted} delivered${summary.failed ? `, ${summary.failed} failed` : ''}.`,
+      urgent: false
+    });
+  }
+}
+
+/* ==================== CSV export ==================== */
+function farmersToCSV(){
+  const header = ['id','name','phone','location','crop','planted','language','channels'];
+  const lines = [header.join(',')];
+  state.farmers.forEach(f => {
+    lines.push([
+      f.id, f.name, f.phone, f.loc, f.crop, f.planted || '', f.lang,
+      (f.channels || []).join('|')
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+  });
+  return lines.join('\r\n');
+}
+
+async function exportFarmers(){
+  const content = farmersToCSV();
+  if (isDesktop){
+    const filePath = await window.rainbrush.exportCSV({
+      filename: `rainbrush-farmers-${new Date().toISOString().slice(0,10)}.csv`,
+      content
+    });
+    if (filePath){
+      toast(`Exported ${filePath.split(/[\\/]/).pop()}`, 'ok');
+      window.rainbrush.showInFolder(filePath);
+    }
+  } else {
+    const blob = new Blob([content], { type:'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rainbrush-farmers.csv';
+    a.click();
+  }
+}
+
+/* ==================== Refresh helpers ==================== */
+async function reloadFromDb(){
+  if (!isDesktop) return;
+  const rows = await window.rainbrush.listFarmers();
+  state.farmers = rows.map(r => ({
+    id: r.id, name: r.name, phone: r.phone, loc: r.loc, crop: r.crop,
+    planted: r.planted || '', lang: r.lang || 'en',
+    channels: Array.isArray(r.channels) ? r.channels : ['sms'],
+    is_seed: r.is_seed
+  }));
+  state.alerts = E.generateAlerts(state.farmers, state.forecasts);
+}
+
+async function refreshSentSignatures(){
+  if (!isDesktop) return;
+  try {
+    const rows = await window.rainbrush.sentSignatures();
+    state.sentSignatures = new Set(rows.map(s => s.signature));
+  } catch {}
+}
+
+async function refreshDeliveryMap(){
+  if (!isDesktop) return;
+  try {
+    state.deliveryMap = await window.rainbrush.receiptsStatusMap();
+  } catch { state.deliveryMap = {}; }
+}
+
+/* ==================== Bootstrap ==================== */
+async function loadForecasts(){
+  const locs = [...new Set(state.farmers.map(f => f.loc))];
+
+  locs.forEach(name => {
+    const loc = LOCATIONS.find(l => l.name === name);
+    if (loc) state.forecasts[name] = simulateForecast(loc);
+  });
+
+  const results = await Promise.all(locs.map(name => {
+    const loc = LOCATIONS.find(l => l.name === name);
+    return loc ? fetchForecast(loc) : Promise.resolve(null);
+  }));
+
+  let liveCount = 0;
+  results.forEach((fc, i) => {
+    if (fc){
+      state.forecasts[locs[i]] = fc;
+      if (fc.source === 'live') liveCount++;
+    }
+  });
+  return liveCount;
+}
+
+async function boot(){
+  if (isDesktop){
+    try {
+      const rows = await window.rainbrush.listFarmers();
+      state.farmers = rows.map(r => ({
+        id: r.id, name: r.name, phone: r.phone, loc: r.loc, crop: r.crop,
+        planted: r.planted || '', lang: r.lang || 'en',
+        channels: Array.isArray(r.channels) ? r.channels : ['sms'],
+        is_seed: r.is_seed
+      }));
+    } catch (e){
+      console.error('DB read failed', e);
+      state.farmers = [];
+    }
+  }
+
+  $('#f-loc').innerHTML = LOCATIONS
+    .map(l => `<option value="${esc(l.name)}">${esc(l.name)} — ${esc(l.region)}</option>`).join('');
+  $('#f-crop').innerHTML = CROPS.map(c => `<option>${esc(c)}</option>`).join('');
+
+  await loadForecasts();
+  state.alerts = E.generateAlerts(state.farmers, state.forecasts);
+
+  if (isDesktop){
+    const s = await window.rainbrush.getStats();
+    state.stats.sent = s.sent || 0;
+    state.stats.attempted = s.attempted || 0;
+
+    await refreshSentSignatures();
+    await refreshDeliveryMap();
+  }
+
+  if (isDesktop && state.alerts.length){
+    try {
+      await window.rainbrush.saveAlerts(state.alerts.map(a => ({
+        id: a.id, farmerId: a.farmer.id, severity: a.severity,
+        title: a.title, body: a.text, lang: a.farmer.lang
+      })));
+    } catch (e){ console.error(e); }
+  }
+
+  renderStudio();
+  renderSky();
+  renderGallery();
+  renderAlerts();
+  renderRegPreview();
+
+  if (isDesktop && state.notifyOn){
+    const crit = state.alerts.filter(a => a.severity === 'critical').length;
+    if (crit > 0){
+      setTimeout(() => {
+        window.rainbrush.notify({
+          title: `⚠ ${crit} critical alert${crit === 1 ? '' : 's'} on the canvas`,
+          body: 'Open the studio to review and broadcast.',
+          urgent: true
+        });
+      }, 900);
+    }
+  }
+
+  if (isDesktop && window.RainbrushCSV){
+    window.RainbrushCSV.init({
+      LOCATIONS,
+      LANG_NAMES,
+      CROPS,
+      toast,
+      renderGallery,
+      reloadFarmers: reloadFromDb
+    });
+  }
+
+  toast(isDesktop ? 'Rainbrush is watching the sky.' : 'Running in browser mode.', 'ok');
+}
+
+/* ==================== Events ==================== */
+$$('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+$$('[data-goto]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.goto)));
+
+$('#btn-broadcast').addEventListener('click', broadcast);
+$('#btn-broadcast-top').addEventListener('click', async () => {
+  switchView('brushstrokes');
+  await new Promise(r => setTimeout(r, 380));
+  broadcast();
+});
+
+$('#btn-refresh').addEventListener('click', async () => {
+  toast('Re-reading the sky…');
+  await loadForecasts();
+  state.alerts = E.generateAlerts(state.farmers, state.forecasts);
+  if (isDesktop && state.alerts.length){
+    await window.rainbrush.saveAlerts(state.alerts.map(a => ({
+      id: a.id, farmerId: a.farmer.id, severity: a.severity,
+      title: a.title, body: a.text, lang: a.farmer.lang
+    })));
+  }
+  renderStudio(); renderSky(); renderGallery(); renderAlerts();
+  toast('Forecast refreshed.', 'ok');
+});
+
+$('#sky-loc').addEventListener('change', renderSky);
+$('#gallery-search').addEventListener('input', renderGallery);
+$('#btn-export').addEventListener('click', exportFarmers);
+$('#btn-export2').addEventListener('click', exportFarmers);
+
+if (isDesktop){
+  $('#btn-reveal').addEventListener('click', () => window.rainbrush.revealData());
+  $('#btn-test-notif').addEventListener('click', () => {
+    window.rainbrush.notify({
+      title: 'Rainbrush test',
+      body: 'Native notifications are working.',
+      urgent: false
+    });
+  });
+
+  $('#btn-sms-test').addEventListener('click', async () => {
+    const to = $('#sms-test-to').value.trim();
+    if (!to){ toast('Enter a phone number first.', 'warn'); return; }
+    toast('Sending test message…');
+    const r = await window.rainbrush.smsTest(to);
+    if (r.ok){
+      toast(r.dryRun ? 'Dry run — logged, not sent.' : `Test sent (${r.sid}).`, 'ok');
+    } else {
+      toast(`Test failed: ${r.error}`, 'warn');
+    }
+  });
+
+  $('#btn-sms-log').addEventListener('click', () => window.rainbrush.smsOpenLog());
+
+  $('#btn-voice-test').addEventListener('click', async () => {
+    const to = $('#voice-test-to').value.trim();
+    if (!to){ toast('Enter a phone number first.', 'warn'); return; }
+    toast('Placing test call…');
+    const r = await window.rainbrush.voiceTest(to);
+    if (r.ok){
+      toast(r.dryRun ? 'Dry run — call logged, not placed.' : `Call queued (${r.sid}).`, 'ok');
+    } else {
+      toast(`Call failed: ${r.error}`, 'warn');
+    }
+  });
+
+  $('#btn-voice-log').addEventListener('click', () => window.rainbrush.voiceOpenLog());
+  $('#btn-voice-poll').addEventListener('click', async () => {
+    const r = await window.rainbrush.voicePollStatus();
+    toast(r.checked ? `Checked ${r.checked} calls, ${r.updated} updated.` : 'No calls pending.', 'ok');
+    renderSettings();
+  });
+
+  $('#sched-run').addEventListener('click', async () => {
+    const btn = $('#sched-run');
+    btn.disabled = true; btn.textContent = 'Running…';
+    const r = await window.rainbrush.schedulerRunNow();
+    btn.disabled = false; btn.textContent = '▶ Run now';
+    if (r.ok){
+      const res = r.result;
+      toast(`Cycle complete — ${res.generated || 0} alerts, ${res.pending || 0} new, ${res.sent || 0} sent.`, 'ok');
+      await reloadFromDb();
+      await refreshSentSignatures();
+      renderSettings();
+    } else {
+      toast(`Cycle failed: ${r.error}`, 'warn');
+    }
+  });
+
+  $('#sched-pause').addEventListener('click', async () => {
+    const s = await window.rainbrush.schedulerStatus();
+    const next = !s.enabled;
+    await window.rainbrush.schedulerSetEnabled(next);
+    toast(next ? 'Scheduler resumed.' : 'Scheduler paused.', 'ok');
+    renderSettings();
+  });
+
+  $('#sched-interval').addEventListener('change', async (e) => {
+    const hours = parseInt(e.target.value, 10);
+    await window.rainbrush.schedulerSetInterval(hours);
+    toast(`Interval set to ${hours}h.`, 'ok');
+    renderSettings();
+  });
+
+  $$('#sched-autosend .chip').forEach(c => c.addEventListener('click', async () => {
+    const on = c.dataset.auto === 'on';
+    if (on){
+      const ok = confirm(
+        'Turn on auto-send?\n\nThe scheduler will dispatch real SMS and voice automatically every cycle.\n' +
+        'Make sure seed farmers are deleted and your provider is configured.'
+      );
+      if (!ok) return;
+    }
+    await window.rainbrush.schedulerSetAutoSend(on);
+    toast(`Auto-send ${on ? 'enabled' : 'disabled'}.`, on ? 'warn' : 'ok');
+    renderSettings();
+  }));
+
+  $('#sched-log').addEventListener('click', () => window.rainbrush.schedulerOpenLog());
+
+  $('#rcpt-poll').addEventListener('click', async () => {
+    const btn = $('#rcpt-poll');
+    btn.disabled = true; btn.textContent = 'Polling…';
+    const r = await window.rainbrush.receiptsPoll();
+    btn.disabled = false; btn.textContent = '↻ Poll now';
+    if (r.ok){
+      toast(r.checked
+        ? `Checked ${r.checked} message${r.checked === 1 ? '' : 's'}, ${r.updated} updated.`
+        : 'Nothing pending.', 'ok');
+      await refreshDeliveryMap();
+      renderSettings();
+      renderAlerts();
+    } else {
+      toast(`Poll failed: ${r.error}`, 'warn');
+    }
+  });
+
+  $('#rcpt-log').addEventListener('click', () => window.rainbrush.receiptsOpenLog());
+
+  $('#ussd-sync').addEventListener('click', async () => {
+    const btn = $('#ussd-sync');
+    btn.disabled = true; btn.textContent = 'Syncing…';
+    const r = await window.rainbrush.ussdSync();
+    btn.disabled = false; btn.textContent = '↻ Sync now';
+    if (r.ok) toast('Relay synced.', 'ok');
+    else toast('Sync failed: ' + ((r.push && r.push.error) || 'unknown'), 'warn');
+    renderSettings();
+  });
+
+  $('#ussd-health').addEventListener('click', async () => {
+    const r = await window.rainbrush.ussdHealth();
+    if (r.ok){
+      toast(`Relay is up. ${(r.counts && r.counts.sessions) || 0} sessions, ${(r.counts && r.counts.farmers) || 0} farmers cached.`, 'ok');
+    } else {
+      toast('Relay unreachable: ' + (r.error || 'unknown'), 'warn');
+    }
+  });
+
+  $('#ussd-log').addEventListener('click', () => window.rainbrush.ussdOpenLog());
+
+  window.rainbrush.onTrayRefresh(() => $('#btn-refresh').click());
+  window.rainbrush.onTrayBroadcast(() => broadcast());
+
+  window.rainbrush.onSchedulerCycle(async (info) => {
+    await reloadFromDb();
+    await refreshSentSignatures();
+    if (document.querySelector('#view-settings').classList.contains('active')){
+      renderSettings();
+    }
+    if (info.sent > 0){
+      toast(`Background cycle sent ${info.sent} message${info.sent === 1 ? '' : 's'}.`, 'ok');
+    } else if (info.pending > 0){
+      toast(`${info.pending} new alert${info.pending === 1 ? '' : 's'} ready to review.`);
+    }
+  });
+
+  window.rainbrush.onReceiptsUpdate(async () => {
+    await refreshDeliveryMap();
+    if (document.querySelector('#view-settings').classList.contains('active')){
+      renderSettings();
+    }
+    if (document.querySelector('#view-brushstrokes').classList.contains('active')){
+      renderAlerts();
+    }
+  });
+
+  if (window.RainbrushCSV){
+    $('#btn-import').addEventListener('click', () => window.RainbrushCSV.open());
+  }
+}
+
+$$('#channel-picker .chip').forEach(c => c.addEventListener('click', () => {
+  $$('#channel-picker .chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  state.channel = c.dataset.ch;
+  renderPhone();
+}));
+
+$$('#lang-chips .chip').forEach(c => c.addEventListener('click', () => {
+  $$('#lang-chips .chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  renderRegPreview();
+}));
+
+$$('#ch-chips .chip').forEach(c => c.addEventListener('click', () => {
+  c.classList.toggle('on');
+  if (!$$('#ch-chips .chip.on').length) c.classList.add('on');
+  renderRegPreview();
+}));
+
+$$('#notif-chips .chip').forEach(c => c.addEventListener('click', () => {
+  $$('#notif-chips .chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  state.notifyOn = c.dataset.notif === 'on';
+}));
+
+$$('#sms-sanitize-chips .chip').forEach(c => c.addEventListener('click', () => {
+  $$('#sms-sanitize-chips .chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  state.smsSanitize = c.dataset.san === 'on';
+}));
+
+['#f-name','#f-loc','#f-crop'].forEach(sel => {
+  $(sel).addEventListener('input', renderRegPreview);
+  $(sel).addEventListener('change', renderRegPreview);
+});
+
+$('#reg-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const name = $('#f-name').value.trim();
+  const phone = $('#f-phone').value.trim();
+  const loc = $('#f-loc').value;
+  const crop = $('#f-crop').value;
+  const planted = $('#f-planted').value;
+  const lang = $('#lang-chips .chip.on')?.dataset.lang || 'en';
+  const channels = $$('#ch-chips .chip.on').map(c => c.dataset.ch);
+
+  if (!name || !phone){ toast('Name and phone number are required.', 'warn'); return; }
+
+  const farmer = {
+    id: 'F' + Date.now().toString(36).toUpperCase(),
+    name, phone, loc, crop, planted, lang, channels
+  };
+
+  if (isDesktop){
+    try { await window.rainbrush.addFarmer(farmer); }
+    catch (err){ console.error(err); toast('Could not save farmer.', 'warn'); return; }
+  }
+  state.farmers.push(farmer);
+
+  if (!state.forecasts[loc]){
+    const l = LOCATIONS.find(x => x.name === loc);
+    if (l) state.forecasts[loc] = simulateForecast(l);
+  }
+  state.alerts = E.generateAlerts(state.farmers, state.forecasts);
+
+  if (isDesktop && state.alerts.length){
+    await window.rainbrush.saveAlerts(state.alerts.map(a => ({
+      id: a.id, farmerId: a.farmer.id, severity: a.severity,
+      title: a.title, body: a.text, lang: a.farmer.lang
+    })));
+  }
+
+  toast(`${name} added to the gallery.`, 'ok');
+  e.target.reset();
+  $$('#lang-chips .chip').forEach((c,i) => c.classList.toggle('on', i === 0));
+  $$('#ch-chips .chip').forEach((c,i) => c.classList.toggle('on', i === 0));
+
+  renderGallery(); renderStudio(); renderAlerts(); renderRegPreview();
+  switchView('gallery');
+});
+
+/* ---- Farmer editor wiring ---- */
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-edit]');
+  if (!btn) return;
+  e.stopPropagation();
+  openEditor(btn.dataset.edit);
+});
+
+$('#edit-close').addEventListener('click', closeEditor);
+$('#edit-cancel').addEventListener('click', closeEditor);
+$('#edit-modal').addEventListener('click', (e) => {
+  if (e.target === $('#edit-modal')) closeEditor();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('#edit-modal').classList.contains('open')){
+    e.stopPropagation();
+    closeEditor();
+  }
+}, true);
+
+$$('#ef-lang .chip').forEach(c => c.addEventListener('click', () => {
+  $$('#ef-lang .chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on');
+  editor.working.lang = c.dataset.lang;
+}));
+
+$$('#ef-channels .chip').forEach(c => c.addEventListener('click', () => {
+  c.classList.toggle('on');
+  if (!$$('#ef-channels .chip.on').length) c.classList.add('on');
+  editor.working.channels = $$('#ef-channels .chip.on').map(x => x.dataset.ch);
+}));
+
+$('#edit-save').addEventListener('click', saveEditor);
+$('#edit-archive').addEventListener('click', archiveEditor);
+
+$('#edit-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  saveEditor();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const tabs = $$('.tab');
+  const idx = tabs.indexOf(document.activeElement);
+  if (idx === -1) return;
+  e.preventDefault();
+  const next = e.key === 'ArrowRight' ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+  tabs[next].focus();
+  switchView(tabs[next].dataset.view);
+});
+
+boot();
+</script>
+</body>
+</html>

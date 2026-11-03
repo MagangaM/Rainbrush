@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+assets/icon.ico
+assets/icon.png
+assets/tray.png
+*.log
+npm-debug.log*

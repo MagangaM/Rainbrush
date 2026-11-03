@@ -1,0 +1,7 @@
+node_modules/
+relay.db
+relay.db-shm
+relay.db-wal
+.env
+*.log
+npm-debug.log*
